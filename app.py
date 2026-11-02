@@ -1,7 +1,6 @@
-import os
 import streamlit as st
 import pandas as pd
-from config import get_gemini_client, get_gemini_api_key, verify_gemini_key, DEFAULT_MODEL
+from config import get_gemini_client, verify_gemini_key, DEFAULT_MODEL
 from agents import (
     ExamProfilerAgent,
     QuestionSetterAgent,
@@ -45,6 +44,14 @@ st.markdown("""
         border-radius: 6px;
         margin: 10px 0;
     }
+    .byok-guide {
+        background: rgba(30, 41, 59, 0.4);
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        border-radius: 8px;
+        padding: 12px;
+        font-size: 0.85rem;
+        margin-top: 10px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -60,9 +67,11 @@ PRESETS = {
 
 # Session State Initialization
 if "stage" not in st.session_state:
-    st.session_state.stage = "init"  # init -> question_ready -> socratic_ready -> evaluated
+    st.session_state.stage = "init"
 if "byok_key" not in st.session_state:
     st.session_state.byok_key = ""
+if "key_verified" not in st.session_state:
+    st.session_state.key_verified = False
 if "blueprint" not in st.session_state:
     st.session_state.blueprint = None
 if "question" not in st.session_state:
@@ -82,7 +91,7 @@ if "report" not in st.session_state:
 if "stats" not in st.session_state:
     st.session_state.stats = {"attempted": 0, "mastered": 0}
 
-# Sidebar: BYOK & Configurations
+# Sidebar: Strict Bring Your Own Key (BYOK)
 with st.sidebar:
     st.title("🛡️ ExamSentinel")
     st.caption("Universal Multi-Agent Competitive Exam Sparring System")
@@ -90,45 +99,63 @@ with st.sidebar:
     st.divider()
     
     # --- Bring Your Own Key (BYOK) Section ---
-    st.markdown("### 🔑 API Key (BYOK)")
-    
-    server_has_key = bool(os.getenv("GEMINI_API_KEY") or (hasattr(st, "secrets") and "GEMINI_API_KEY" in st.secrets))
-    
-    auth_mode = "Enter My Own Key"
-    if server_has_key:
-        auth_mode = st.radio(
-            "Authentication Mode",
-            ["Server Default Key", "Bring Your Own Key (BYOK)"],
-            index=0,
-            help="Choose whether to use the pre-configured server key or supply your own."
-        )
+    st.markdown("### 🔑 Bring Your Own Key (BYOK)")
+    st.caption("To use this multi-agent system, please provide your personal Google Gemini API key. Your key is stored solely in this browser session and is never saved to the server.")
 
-    active_manual_key = None
-    if not server_has_key or auth_mode == "Bring Your Own Key (BYOK)":
-        user_entered_key = st.text_input(
-            "Google Gemini API Key",
-            value=st.session_state.byok_key,
-            type="password",
-            placeholder="AIzaSy... or AQ.Ab8...",
-            help="Your key is never stored on a server or committed to git. It stays in your browser session."
-        )
-        st.session_state.byok_key = user_entered_key
-        active_manual_key = user_entered_key
-        
-        col_k1, col_k2 = st.columns([1, 1])
-        if col_k1.button("Verify Key", use_container_width=True):
-            with st.spinner("Testing key..."):
-                ok, msg = verify_gemini_key(user_entered_key)
+    user_entered_key = st.text_input(
+        "Enter Google Gemini API Key",
+        value=st.session_state.byok_key,
+        type="password",
+        placeholder="AIzaSy... or AQ.Ab8...",
+        help="Paste your personal Google Gemini API key here."
+    )
+    
+    # Update session state if input changed
+    cleaned_key = user_entered_key.strip() if user_entered_key else ""
+    if cleaned_key != st.session_state.byok_key:
+        st.session_state.byok_key = cleaned_key
+        st.session_state.key_verified = False
+
+    col_k1, col_k2 = st.columns([1, 1])
+    if col_k1.button("Verify Key", use_container_width=True):
+        if not st.session_state.byok_key:
+            st.error("Please enter a key first.")
+        else:
+            with st.spinner("Verifying with Gemini..."):
+                ok, msg = verify_gemini_key(st.session_state.byok_key)
                 if ok:
-                    st.success("✅ Key verified & ready!")
+                    st.success("✅ Active & Authenticated!")
+                    st.session_state.key_verified = True
                 else:
-                    st.error(f"❌ Verification failed: {msg}")
-                    
-        st.markdown(
-            "💡 [Get a free Gemini API key](https://aistudio.google.com/app/apikey) from Google AI Studio *(Free tier, no credit card required)*."
-        )
+                    st.error(f"❌ {msg}")
+                    st.session_state.key_verified = False
+
+    # Key Status Indicator
+    if st.session_state.byok_key:
+        if st.session_state.key_verified:
+            st.caption("🟢 **Status:** Verified & Ready")
+        else:
+            st.caption("🟡 **Status:** Key entered (click 'Verify Key' to test)")
     else:
-        st.success("🔒 Using Server Default API Key")
+        st.caption("🔴 **Status:** Key required to run agents")
+
+    # Informational Guide on Supported Keys & Where to Get Them
+    with st.expander("📖 Supported Keys & Where to Get One", expanded=(not bool(st.session_state.byok_key))):
+        st.markdown("""
+        **Supported API Keys:**
+        * **Google Gemini API Key** (Official)
+        * Key formats usually begin with `AIzaSy...` or `AQ.Ab8...`
+        * Powers all 5 agents on `gemini-3.5-flash`
+
+        ---
+        **Where to get a key (100% Free):**
+        1. Open [Google AI Studio](https://aistudio.google.com/app/apikey).
+        2. Sign in with any Google account.
+        3. Click **"Create API key"**.
+        4. Copy the generated key and paste it above.
+        
+        *Free tier includes generous quota with **zero credit card or billing required**.*
+        """)
 
     st.divider()
     
@@ -175,30 +202,29 @@ with st.sidebar:
         st.session_state.defense_response = ""
         st.rerun()
 
-# Helper function to get client
+# Helper function to get authenticated client strictly using BYOK
 def get_client():
-    return get_gemini_client(active_manual_key)
+    if not st.session_state.byok_key:
+        raise ValueError("Please provide your Gemini API Key in the left sidebar to start.")
+    return get_gemini_client(st.session_state.byok_key)
 
 # Main Dashboard Header
 st.markdown('<div class="main-header">ExamSentinel : Multi-Agent Cognitive Sparring</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-header">Simulating an adversarial examination committee that stress-tests your mental models and cognitive traps.</div>', unsafe_allow_html=True)
 
-# Check active key availability
-current_effective_key = get_gemini_api_key(active_manual_key)
-
 # ----------------- STAGE 0: Initial Screen -----------------
 if st.session_state.stage == "init":
-    if not current_effective_key:
+    if not st.session_state.byok_key:
         with st.container(border=True):
-            st.warning("### 🔑 Bring Your Own Key Required")
+            st.warning("### 🔑 Bring Your Own Key Required to Spar")
             st.markdown("""
-            To start using **ExamSentinel**, please provide a **Google Gemini API Key** in the left sidebar:
+            **ExamSentinel** is completely free to use, but requires you to bring your own **Google Gemini API Key** to power the 5 specialized AI agents:
             
-            1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey) and click **"Create API Key"** (100% free, no credit card required).
-            2. Paste the key into the **Google Gemini API Key** box in the left sidebar.
-            3. Click **"Verify Key"** to confirm access.
+            1. **Get your free key**: Go to [Google AI Studio (aistudio.google.com)](https://aistudio.google.com/app/apikey) and click **"Create API key"** (free, no credit card required).
+            2. **Paste your key**: Enter it into the **"Enter Google Gemini API Key"** field in the left sidebar.
+            3. **Verify**: Click **"Verify Key"** in the sidebar to activate the committee.
             
-            *Your key remains private in your local browser session and is never stored on a server.*
+            *Supported formats: keys starting with `AIzaSy...` or `AQ.Ab8...`.*
             """)
     else:
         st.info("👋 Select an exam and topic on the left sidebar, then click **Summon Committee & Generate Problem** below to begin.")
