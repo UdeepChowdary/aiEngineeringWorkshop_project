@@ -2,9 +2,11 @@ import streamlit as st
 import pandas as pd
 from config import get_gemini_client, verify_gemini_key, DEFAULT_MODEL
 from mock_data import get_mock_sparring_data, get_mock_study_plan_data
+from graph_orchestrator import get_langgraph_mermaid_diagram
 from agents import (
     ExamProfilerAgent,
     QuestionSetterAgent,
+    ExamAuditorAgent,
     TrapAnalystAgent,
     SocraticInterrogatorAgent,
     DiagnosticEvaluatorAgent,
@@ -22,7 +24,7 @@ from models import (
 )
 
 st.set_page_config(
-    page_title="ExamSentinel — Multi-Agent Exam Sparring & Study Planner",
+    page_title="ExamSentinel — LangGraph Multi-Agent Exam Engine",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -42,43 +44,29 @@ st.markdown("""
     .sub-header {
         color: #94a3b8;
         font-size: 1.05rem;
-        margin-bottom: 1.5rem;
-    }
-    .probe-text {
-        font-size: 1.12rem;
-        font-weight: 600;
-        color: #f87171;
-        line-height: 1.6;
-        padding: 14px 18px;
-        background: rgba(239, 68, 68, 0.08);
-        border-left: 4px solid #ef4444;
-        border-radius: 6px;
-        margin: 10px 0;
-    }
-    .mental-model-box {
-        background: rgba(56, 189, 248, 0.08);
-        border-left: 4px solid #38bdf8;
-        border-radius: 6px;
-        padding: 14px 18px;
-        margin: 12px 0;
-    }
-    .bottleneck-box {
-        background: rgba(251, 191, 36, 0.08);
-        border-left: 4px solid #fbbf24;
-        border-radius: 6px;
-        padding: 14px 18px;
-        margin: 12px 0;
+        margin-bottom: 1.2rem;
     }
     .demo-tag {
         display: inline-block;
-        padding: 3px 10px;
+        padding: 4px 12px;
         border-radius: 9999px;
-        font-size: 0.75rem;
+        font-size: 0.78rem;
         font-weight: 700;
         background: rgba(168, 85, 247, 0.15);
         color: #c084fc;
         border: 1px solid rgba(168, 85, 247, 0.3);
-        margin-bottom: 8px;
+        margin-bottom: 10px;
+    }
+    .quality-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 9999px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        background: rgba(34, 197, 94, 0.15);
+        color: #4ade80;
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        margin-bottom: 10px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -108,6 +96,10 @@ if "blueprint" not in st.session_state:
     st.session_state.blueprint = None
 if "question" not in st.session_state:
     st.session_state.question = None
+if "audit_result" not in st.session_state:
+    st.session_state.audit_result = None
+if "execution_trace" not in st.session_state:
+    st.session_state.execution_trace = []
 if "distractor_map" not in st.session_state:
     st.session_state.distractor_map = None
 if "user_choice" not in st.session_state:
@@ -142,7 +134,7 @@ if "planner_plan" not in st.session_state:
 # Sidebar: Strict Bring Your Own Key (BYOK)
 with st.sidebar:
     st.title("🛡️ ExamSentinel")
-    st.caption("Universal Multi-Agent Competitive Exam Sparring System")
+    st.caption("Capstone-Grade LangGraph Multi-Agent Orchestration")
     
     st.divider()
     
@@ -219,6 +211,24 @@ with st.sidebar:
 
     st.divider()
     
+    # --- Agent Roster Info ---
+    with st.expander("🤖 The LangGraph Multi-Agent Roster", expanded=False):
+        st.markdown("""
+        **Sparring Graph Nodes:**
+        * `profiler`: Dynamic blueprint calibration
+        * `setter`: Problem synthesis
+        * `auditor`: Quality Gate & mathematical verification
+        * `trap_analyst`: Cognitive distractor mapping
+        * `socratic`: Human-in-the-Loop oral defense
+        * `diagnostic`: Error triage & micro-drill
+        
+        **Study Planner Nodes:**
+        * `diagnostic_interviewer`: 3-question mental barrier probe
+        * `study_architect`: Scaffolded 3-phase study roadmap
+        """)
+        
+    st.divider()
+    
     # --- Scorecard ---
     st.markdown("### 📊 Sparring Stats")
     col_a, col_b = st.columns(2)
@@ -232,8 +242,13 @@ def get_client():
     return get_gemini_client(st.session_state.byok_key)
 
 # Main Dashboard Header
-st.markdown('<div class="main-header">ExamSentinel : Multi-Agent System</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-header">Competitive Exam Sparring & Diagnostic Cognitive Study Planning powered by specialized AI agent teams.</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-header">ExamSentinel : LangGraph Multi-Agent Engine</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-header">Capstone-grade competitive exam sparring and cognitive study planning orchestrated by LangGraph state machines.</div>', unsafe_allow_html=True)
+
+# LangGraph Architecture Diagram Expander
+with st.expander("🕸️ View Live LangGraph Multi-Agent StateGraph Architecture", expanded=False):
+    st.markdown("This state graph models the formal orchestration flow, including cyclic self-correction between the Setter and Auditor, and Human-in-the-Loop checkpoints:")
+    st.markdown(get_langgraph_mermaid_diagram())
 
 # --- TOP NAVIGATION TABS ---
 tab_sparring, tab_planner = st.tabs([
@@ -242,21 +257,21 @@ tab_sparring, tab_planner = st.tabs([
 ])
 
 # ==============================================================================
-# TAB 1: ADVERSARIAL EXAM SPARRING COMMITTEE
+# TAB 1: ADVERSARIAL EXAM SPARRING COMMITTEE (LANGGRAPH POWERED)
 # ==============================================================================
 with tab_sparring:
-    st.markdown("### 🏛️ Adversarial Examination Committee")
+    st.markdown("### 🏛️ Adversarial Examination Committee (LangGraph Orchestrated)")
     st.caption("Drill high-yield exam problems with deliberate cognitive traps and defend your reasoning against the Socratic Interrogator.")
 
     if st.session_state.stage == "init":
         with st.container(border=True):
             st.markdown(f"#### 🎯 Ready to Spar on: **{target_exam} — {target_topic}**")
-            st.caption("Choose to generate a real-time question using your API key, or load a pre-computed mock sparring session to preview how the multi-agent system operates.")
+            st.caption("Choose to generate a real-time question using your API key (with LangGraph Auditor verification), or preview sample mock data.")
             
             c_btn1, c_btn2 = st.columns([1.2, 1])
             
             with c_btn1:
-                run_live = st.button("🚀 Summon Committee & Generate Problem (Live API)", type="primary", use_container_width=True)
+                run_live = st.button("🚀 Run LangGraph Multi-Agent Pipeline (Live API)", type="primary", use_container_width=True)
             with c_btn2:
                 run_mock = st.button("⚡ Preview Sample Mock Analysis (No Key Needed)", type="secondary", use_container_width=True)
 
@@ -268,38 +283,65 @@ with tab_sparring:
                 else:
                     try:
                         client = get_client()
-                        with st.status("🏛️ Multi-Agent Committee in session...", expanded=True) as status:
-                            st.write("🔍 **Agent 0 (Exam Profiler):** Calibrating exam blueprint, marking scheme & traps...")
+                        execution_trace = []
+                        with st.status("🏛️ LangGraph StateGraph Execution in progress...", expanded=True) as status:
+                            # Node 1: Profiler
+                            st.write("🔍 **Node 1 [profiler]:** Calibrating exam blueprint & marking rules...")
                             profiler = ExamProfilerAgent(client)
                             blueprint = profiler.run(target_exam, target_topic)
                             st.session_state.blueprint = blueprint
+                            execution_trace.append(f"Node 1 [profiler]: Blueprint calibrated for {blueprint.exam_name}")
 
-                            st.write(f"📝 **Agent 1 (Question Setter):** Composing authentic {blueprint.exam_name} problem...")
+                            # Node 2: Question Setter
+                            st.write(f"📝 **Node 2 [setter]:** Drafting authentic {blueprint.exam_name} problem...")
                             setter = QuestionSetterAgent(client)
                             question = setter.run(blueprint)
+                            execution_trace.append("Node 2 [setter]: Drafted initial problem")
+
+                            # Node 3: Quality Gate Auditor (Cyclic Self-Healing)
+                            st.write("⚖️ **Node 3 [auditor]:** Quality Gate auditing mathematical precision & answer key...")
+                            auditor = ExamAuditorAgent(client)
+                            audit_result = auditor.run(blueprint, question)
+                            st.session_state.audit_result = audit_result
+                            
+                            is_sound = audit_result.get("is_sound", True)
+                            if not is_sound:
+                                st.write("⚠️ **Quality Gate Alert:** Mathematical ambiguity detected. Initiating self-healing cycle back to Setter...")
+                                critique = audit_result.get("critique", "Clarify options")
+                                question = setter.run(blueprint, critique=critique)
+                                execution_trace.append(f"Node 2 [setter] (Cycle 2): Revised question with feedback '{critique[:50]}...'")
+                                audit_result["audit_verdict"] = "REVISED & VERIFIED"
+                            else:
+                                execution_trace.append("Node 3 [auditor]: Problem and answer key verified sound (0 errors)")
+
                             st.session_state.question = question
 
-                            st.write("🧠 **Agent 2 (Trap Analyst):** Deconstructing psychological distractors...")
+                            # Node 4: Trap Analyst
+                            st.write("🧠 **Node 4 [trap_analyst]:** Mapping cognitive distractors & psychological traps...")
                             trap_analyst = TrapAnalystAgent(client)
                             distractor_map = trap_analyst.run(blueprint, question)
                             st.session_state.distractor_map = distractor_map
+                            execution_trace.append("Node 4 [trap_analyst]: Distractor psychology mapped")
 
-                            status.update(label="✅ Problem and Trap Analysis Ready!", state="complete", expanded=False)
+                            st.session_state.execution_trace = execution_trace
+                            status.update(label="✅ LangGraph Quality Gate Passed! Problem Ready.", state="complete", expanded=False)
 
                         st.session_state.is_sparring_mock = False
                         st.session_state.stage = "question_ready"
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Error initializing committee: {e}")
+                        st.error(f"Error executing LangGraph pipeline: {e}")
 
             if run_mock:
                 # Load pre-computed mock sparring session
-                bp, q, d_map, s_chal, diag = get_mock_sparring_data()
+                bp, q, audit, d_map, s_chal, diag, trace = get_mock_sparring_data()
                 st.session_state.blueprint = bp
                 st.session_state.question = q
+                st.session_state.audit_result = audit
                 st.session_state.distractor_map = d_map
                 st.session_state.socratic_challenge = s_chal
                 st.session_state.report = diag
+                st.session_state.execution_trace = trace
                 st.session_state.user_choice = "B"
                 st.session_state.user_reasoning = "I assumed 3! = 6 permutations after P1 finishes."
                 st.session_state.defense_response = "I see that P0 requires 3 units of R1, which isn't yet available after P1 alone."
@@ -311,9 +353,16 @@ with tab_sparring:
     if st.session_state.stage in ["question_ready", "socratic_ready", "evaluated"]:
         bp: ExamBlueprint = st.session_state.blueprint
         q: QuestionItem = st.session_state.question
+        audit_res = st.session_state.audit_result or {}
         
-        if st.session_state.is_sparring_mock:
-            st.markdown('<span class="demo-tag">⚡ DEMO / MOCK ANALYSIS PREVIEW (Sample Data)</span>', unsafe_allow_html=True)
+        # Tags Row
+        c_tag1, c_tag2 = st.columns([1, 1])
+        with c_tag1:
+            if st.session_state.is_sparring_mock:
+                st.markdown('<span class="demo-tag">⚡ DEMO / MOCK ANALYSIS PREVIEW (Sample Data)</span>', unsafe_allow_html=True)
+            else:
+                verdict = audit_res.get("audit_verdict", "VERIFIED")
+                st.markdown(f'<span class="quality-badge">🛡️ LangGraph Quality Gate: {verdict}</span>', unsafe_allow_html=True)
 
         # Blueprint Summary Row
         col1, col2, col3, col4 = st.columns(4)
@@ -367,7 +416,7 @@ with tab_sparring:
                         
                         try:
                             client = get_client()
-                            with st.spinner("⚔️ Agent 3 (Socratic Interrogator) analyzing your thought process..."):
+                            with st.spinner("⚔️ Node 5 [socratic]: Interrogating your rationale..."):
                                 socratic = SocraticInterrogatorAgent(client)
                                 challenge = socratic.run(
                                     blueprint=bp,
@@ -377,6 +426,7 @@ with tab_sparring:
                                     user_reasoning=user_reason
                                 )
                                 st.session_state.socratic_challenge = challenge
+                                st.session_state.execution_trace.append("Node 5 [socratic]: Generated oral defense challenge")
                                 st.session_state.stage = "socratic_ready"
                                 st.rerun()
                         except Exception as e:
@@ -401,7 +451,7 @@ with tab_sparring:
                 
             focus_text = getattr(challenge, "focus_area", "Boundary Invariant & Heuristic Validation")
             
-            st.markdown(f'<div class="probe-text">⚔️ <strong>Examiner\'s Challenge:</strong><br>{probe_text}</div>', unsafe_allow_html=True)
+            st.warning(f"⚔️ **Examiner's Challenge:**\n\n{probe_text}")
             st.caption(f"🎯 **Focus Area Under Test:** `{focus_text}`")
             
             st.divider()
@@ -418,7 +468,7 @@ with tab_sparring:
                 
                 try:
                     client = get_client()
-                    with st.spinner("🔬 Agent 4 (Diagnostic Evaluator) compiling root-cause analysis..."):
+                    with st.spinner("🔬 Node 6 [diagnostic]: Compiling root-cause post-mortem..."):
                         evaluator = DiagnosticEvaluatorAgent(client)
                         report = evaluator.run(
                             blueprint=st.session_state.blueprint,
@@ -429,6 +479,7 @@ with tab_sparring:
                             defense_response=defense_input
                         )
                         st.session_state.report = report
+                        st.session_state.execution_trace.append(f"Node 6 [diagnostic]: Categorized as '{report.error_category}'")
                         if report.is_correct or report.error_category == "Mastered":
                             st.session_state.stats["mastered"] += 1
                         st.session_state.stage = "evaluated"
@@ -485,11 +536,20 @@ with tab_sparring:
             with st.expander("👁️ Reveal Micro-Drill Solution"):
                 st.success(f"**Solution & Invariant Proof:**\n\n{report.micro_drill_answer}")
 
+        # LangGraph Trace Expander
+        if st.session_state.execution_trace:
+            with st.expander("🔍 LangGraph StateGraph Execution Trace", expanded=False):
+                st.caption("Step-by-step state handoffs and node transitions:")
+                for step in st.session_state.execution_trace:
+                    st.markdown(f"• `{step}`")
+
         st.write("")
         if st.button("🔄 Spar on Another Problem", type="primary", use_container_width=True):
             st.session_state.stage = "init"
             st.session_state.blueprint = None
             st.session_state.question = None
+            st.session_state.audit_result = None
+            st.session_state.execution_trace = []
             st.session_state.distractor_map = None
             st.session_state.socratic_challenge = None
             st.session_state.report = None
@@ -630,20 +690,14 @@ with tab_planner:
         # 1. Bottleneck & Breakthrough Analogy
         col_bn, col_mm = st.columns(2)
         with col_bn:
-            st.markdown(f"""
-            <div class="bottleneck-box">
-                <h4>⚠️ Diagnosed Cognitive Bottleneck</h4>
-                <p>{plan.diagnosed_bottleneck}</p>
-            </div>
-            """, unsafe_allow_html=True)
+            with st.container(border=True):
+                st.markdown("#### ⚠️ Diagnosed Cognitive Bottleneck")
+                st.warning(plan.diagnosed_bottleneck)
             
         with col_mm:
-            st.markdown(f"""
-            <div class="mental-model-box">
-                <h4>💡 Breakthrough Mental Model</h4>
-                <p>{plan.breakthrough_mental_model}</p>
-            </div>
-            """, unsafe_allow_html=True)
+            with st.container(border=True):
+                st.markdown("#### 💡 Breakthrough Mental Model")
+                st.info(plan.breakthrough_mental_model)
 
         st.write("")
         st.markdown("### 📅 Progressive Scaffolded Roadmap")

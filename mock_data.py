@@ -63,6 +63,13 @@ def get_mock_sparring_data():
         )
     )
 
+    audit_result = {
+        "is_sound": True,
+        "audit_verdict": "VERIFIED",
+        "math_verification": "Vector arithmetic verified. Total resources (9,3,6) minus sum of allocations (7,2,4) equals Available (2,1,2). Exactly 2 safe sequences exist.",
+        "critique": "Approved: Question is mathematically sound with unambiguous distractors."
+    }
+
     distractor_map = DistractorMap(
         key_concept_tested="Sequential Vector Inequality & Running Available Accumulation",
         option_traps={
@@ -103,7 +110,16 @@ def get_mock_sparring_data():
         )
     )
 
-    return blueprint, question, distractor_map, socratic_challenge, diagnostic_report
+    execution_trace = [
+        "Node 1 [profiler]: Calibrated blueprint for GATE CS (Operating Systems)",
+        "Node 2 [setter]: Drafted Banker's Algorithm allocation problem",
+        "Node 3 [auditor]: Quality Gate verified vector mathematics (0 errors detected)",
+        "Node 4 [trap_analyst]: Deconstructed factorial permutation trap",
+        "Node 5 [socratic]: Generated challenge on sequential dependency vs combinatorial multiplication",
+        "Node 6 [diagnostic]: Categorized cognitive error as 'Trap Victim' with micro-drill"
+    ]
+
+    return blueprint, question, audit_result, distractor_map, socratic_challenge, diagnostic_report, execution_trace
 
 
 def get_mock_study_plan_data():

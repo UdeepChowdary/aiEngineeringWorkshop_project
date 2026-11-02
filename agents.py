@@ -86,13 +86,13 @@ Output a JSON object:
 
 
 class QuestionSetterAgent:
-    """Agent 1: Crafts exam-grade authentic problems with deliberate distractors."""
+    """Agent 1: Crafts exam-grade authentic problems with deliberate distractors and revision capability."""
 
     def __init__(self, client: genai.Client):
         self.client = client
         self.name = "Question Setter (Chief Examiner)"
 
-    def run(self, blueprint: ExamBlueprint) -> QuestionItem:
+    def run(self, blueprint: ExamBlueprint, critique: str = "") -> QuestionItem:
         system_prompt = f"""You are the Chief Question Setter for {blueprint.exam_name}.
 Compose an authentic, high-caliber question on '{blueprint.topic}'.
 Difficulty Tier: {blueprint.difficulty_tier}
@@ -101,7 +101,7 @@ Question Style: {blueprint.question_style}
 Rules:
 1. No simple trivia. The problem must require multi-step reasoning or mathematical application.
 2. Provide 4 distinct options: A, B, C, D with 3 deceptive distractor traps.
-3. Keep the problem and explanation concise and precise.
+3. Keep the problem and explanation concise and mathematically rigorous.
 
 Output JSON:
 {{
@@ -116,8 +116,42 @@ Output JSON:
   "official_explanation": "Concise step-by-step mathematical/logical proof"
 }}"""
         user_prompt = f"Generate an authentic {blueprint.exam_name} problem on '{blueprint.topic}' testing traps: {', '.join(blueprint.hallmark_examiner_tricks)}."
+        if critique and critique.strip():
+            user_prompt += f"\n\nCRITICAL AUDITOR FEEDBACK FROM PREVIOUS DRAFT:\n{critique}\nYou MUST fix this issue in your revised problem!"
+
         data = _call_gemini_json(self.client, system_prompt, user_prompt)
         return QuestionItem(**data)
+
+
+class ExamAuditorAgent:
+    """Agent 1.5 (LangGraph Quality Gate): Mathematical and Logical Quality Auditor."""
+
+    def __init__(self, client: genai.Client):
+        self.client = client
+        self.name = "Exam Auditor & Verifier"
+
+    def run(self, blueprint: ExamBlueprint, question: QuestionItem) -> Dict[str, Any]:
+        system_prompt = f"""You are the Senior Mathematical & Logical Quality Auditor for {blueprint.exam_name}.
+Your job is to independently audit the drafted question and answer key for mathematical precision, unambiguous wording, and correctness.
+
+Evaluate:
+1. Is the question mathematically sound and unambiguous?
+2. Does the stated correct answer unequivocally match the rigorous derivation?
+3. Are the options mutually distinct without duplicates or multiple correct answers?
+
+Output JSON:
+{{
+  "is_sound": true or false,
+  "audit_verdict": "VERIFIED" or "NEEDS_REVISION",
+  "math_verification": "1-2 sentence verification breakdown",
+  "critique": "Specific feedback if rejected, or 'Approved: Concept and mathematics sound' if verified"
+}}"""
+        user_prompt = f"""Exam: {blueprint.exam_name}
+Question: {question.question}
+Options: {json.dumps(question.options)}
+Stated Answer: {question.correct_answer}
+Derivation: {question.official_explanation}"""
+        return _call_gemini_json(self.client, system_prompt, user_prompt)
 
 
 class TrapAnalystAgent:
