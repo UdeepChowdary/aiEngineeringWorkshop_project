@@ -1,6 +1,7 @@
+import os
 import streamlit as st
 import pandas as pd
-from config import get_gemini_client, get_gemini_api_key, DEFAULT_MODEL
+from config import get_gemini_client, get_gemini_api_key, verify_gemini_key, DEFAULT_MODEL
 from agents import (
     ExamProfilerAgent,
     QuestionSetterAgent,
@@ -17,7 +18,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom Styling (Only for global typography and clean accents, NO raw container divs)
+# Custom Styling
 st.markdown("""
 <style>
     .main-header {
@@ -34,11 +35,11 @@ st.markdown("""
         margin-bottom: 1.5rem;
     }
     .probe-text {
-        font-size: 1.15rem;
+        font-size: 1.12rem;
         font-weight: 600;
         color: #f87171;
         line-height: 1.6;
-        padding: 12px 16px;
+        padding: 14px 18px;
         background: rgba(239, 68, 68, 0.08);
         border-left: 4px solid #ef4444;
         border-radius: 6px;
@@ -60,6 +61,8 @@ PRESETS = {
 # Session State Initialization
 if "stage" not in st.session_state:
     st.session_state.stage = "init"  # init -> question_ready -> socratic_ready -> evaluated
+if "byok_key" not in st.session_state:
+    st.session_state.byok_key = ""
 if "blueprint" not in st.session_state:
     st.session_state.blueprint = None
 if "question" not in st.session_state:
@@ -79,22 +82,57 @@ if "report" not in st.session_state:
 if "stats" not in st.session_state:
     st.session_state.stats = {"attempted": 0, "mastered": 0}
 
-# Sidebar
+# Sidebar: BYOK & Configurations
 with st.sidebar:
     st.title("🛡️ ExamSentinel")
     st.caption("Universal Multi-Agent Competitive Exam Sparring System")
     
     st.divider()
     
-    # API Key Handling
-    api_key_status = bool(get_gemini_api_key())
-    manual_api_key = ""
-    if not api_key_status:
-        st.warning("No API key detected in environment.")
-        manual_api_key = st.text_input("Enter Gemini API Key", type="password", help="Get a free key from Google AI Studio")
-    else:
-        st.success("API Key Active & Secured")
+    # --- Bring Your Own Key (BYOK) Section ---
+    st.markdown("### 🔑 API Key (BYOK)")
     
+    server_has_key = bool(os.getenv("GEMINI_API_KEY") or (hasattr(st, "secrets") and "GEMINI_API_KEY" in st.secrets))
+    
+    auth_mode = "Enter My Own Key"
+    if server_has_key:
+        auth_mode = st.radio(
+            "Authentication Mode",
+            ["Server Default Key", "Bring Your Own Key (BYOK)"],
+            index=0,
+            help="Choose whether to use the pre-configured server key or supply your own."
+        )
+
+    active_manual_key = None
+    if not server_has_key or auth_mode == "Bring Your Own Key (BYOK)":
+        user_entered_key = st.text_input(
+            "Google Gemini API Key",
+            value=st.session_state.byok_key,
+            type="password",
+            placeholder="AIzaSy... or AQ.Ab8...",
+            help="Your key is never stored on a server or committed to git. It stays in your browser session."
+        )
+        st.session_state.byok_key = user_entered_key
+        active_manual_key = user_entered_key
+        
+        col_k1, col_k2 = st.columns([1, 1])
+        if col_k1.button("Verify Key", use_container_width=True):
+            with st.spinner("Testing key..."):
+                ok, msg = verify_gemini_key(user_entered_key)
+                if ok:
+                    st.success("✅ Key verified & ready!")
+                else:
+                    st.error(f"❌ Verification failed: {msg}")
+                    
+        st.markdown(
+            "💡 [Get a free Gemini API key](https://aistudio.google.com/app/apikey) from Google AI Studio *(Free tier, no credit card required)*."
+        )
+    else:
+        st.success("🔒 Using Server Default API Key")
+
+    st.divider()
+    
+    # --- Exam Configuration ---
     st.markdown("### 🎯 Exam Configuration")
     preset_choice = st.selectbox("Select Preset or Custom", list(PRESETS.keys()))
     
@@ -107,7 +145,7 @@ with st.sidebar:
 
     st.divider()
     
-    # Agent Roster Info
+    # --- Agent Roster Info ---
     with st.expander("🤖 The 5-Agent Committee", expanded=False):
         st.markdown("""
         * **Exam Profiler**: Dynamic blueprint & scoring calibration
@@ -119,7 +157,7 @@ with st.sidebar:
         
     st.divider()
     
-    # Scorecard
+    # --- Scorecard ---
     st.markdown("### 📊 Sparring Stats")
     col_a, col_b = st.columns(2)
     col_a.metric("Attempted", st.session_state.stats["attempted"])
@@ -137,53 +175,69 @@ with st.sidebar:
         st.session_state.defense_response = ""
         st.rerun()
 
+# Helper function to get client
+def get_client():
+    return get_gemini_client(active_manual_key)
+
 # Main Dashboard Header
 st.markdown('<div class="main-header">ExamSentinel : Multi-Agent Cognitive Sparring</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-header">Simulating an adversarial examination committee that stress-tests your mental models and cognitive traps.</div>', unsafe_allow_html=True)
 
-# Helper function to get client
-def get_client():
-    return get_gemini_client(manual_api_key)
+# Check active key availability
+current_effective_key = get_gemini_api_key(active_manual_key)
 
 # ----------------- STAGE 0: Initial Screen -----------------
 if st.session_state.stage == "init":
-    st.info("👋 Select an exam and topic on the left sidebar, then click **Summon Committee & Generate Problem** below to begin.")
-    
-    if st.button("🚀 Summon Committee & Generate Problem", type="primary", use_container_width=True):
-        if not target_exam.strip() or not target_topic.strip():
-            st.error("Please provide both an Exam Name and Topic.")
-        else:
-            try:
-                client = get_client()
-                with st.status("🏛️ Multi-Agent Committee in session...", expanded=True) as status:
-                    st.write("🔍 **Agent 0 (Exam Profiler):** Calibrating exam blueprint, marking scheme & traps...")
-                    profiler = ExamProfilerAgent(client)
-                    blueprint = profiler.run(target_exam, target_topic)
-                    st.session_state.blueprint = blueprint
+    if not current_effective_key:
+        with st.container(border=True):
+            st.warning("### 🔑 Bring Your Own Key Required")
+            st.markdown("""
+            To start using **ExamSentinel**, please provide a **Google Gemini API Key** in the left sidebar:
+            
+            1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey) and click **"Create API Key"** (100% free, no credit card required).
+            2. Paste the key into the **Google Gemini API Key** box in the left sidebar.
+            3. Click **"Verify Key"** to confirm access.
+            
+            *Your key remains private in your local browser session and is never stored on a server.*
+            """)
+    else:
+        st.info("👋 Select an exam and topic on the left sidebar, then click **Summon Committee & Generate Problem** below to begin.")
+        
+        if st.button("🚀 Summon Committee & Generate Problem", type="primary", use_container_width=True):
+            if not target_exam.strip() or not target_topic.strip():
+                st.error("Please provide both an Exam Name and Topic.")
+            else:
+                try:
+                    client = get_client()
+                    with st.status("🏛️ Multi-Agent Committee in session...", expanded=True) as status:
+                        st.write("🔍 **Agent 0 (Exam Profiler):** Calibrating exam blueprint, marking scheme & traps...")
+                        profiler = ExamProfilerAgent(client)
+                        blueprint = profiler.run(target_exam, target_topic)
+                        st.session_state.blueprint = blueprint
 
-                    st.write(f"📝 **Agent 1 (Question Setter):** Composing authentic {blueprint.exam_name} problem...")
-                    setter = QuestionSetterAgent(client)
-                    question = setter.run(blueprint)
-                    st.session_state.question = question
+                        st.write(f"📝 **Agent 1 (Question Setter):** Composing authentic {blueprint.exam_name} problem...")
+                        setter = QuestionSetterAgent(client)
+                        question = setter.run(blueprint)
+                        st.session_state.question = question
 
-                    st.write("🧠 **Agent 2 (Trap Analyst):** Deconstructing psychological distractors...")
-                    trap_analyst = TrapAnalystAgent(client)
-                    distractor_map = trap_analyst.run(blueprint, question)
-                    st.session_state.distractor_map = distractor_map
+                        st.write("🧠 **Agent 2 (Trap Analyst):** Deconstructing psychological distractors...")
+                        trap_analyst = TrapAnalystAgent(client)
+                        distractor_map = trap_analyst.run(blueprint, question)
+                        st.session_state.distractor_map = distractor_map
 
-                    status.update(label="✅ Problem and Trap Analysis Ready!", state="complete", expanded=False)
+                        status.update(label="✅ Problem and Trap Analysis Ready!", state="complete", expanded=False)
 
-                st.session_state.stage = "question_ready"
-                st.rerun()
-            except Exception as e:
-                st.error(f"Error initializing committee: {e}")
+                    st.session_state.stage = "question_ready"
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error initializing committee: {e}")
 
 # ----------------- STAGES 1, 2, 3: Active Question Display -----------------
 if st.session_state.stage in ["question_ready", "socratic_ready", "evaluated"]:
     bp: ExamBlueprint = st.session_state.blueprint
     q: QuestionItem = st.session_state.question
     
-    # Blueprint Summary Row (Native Streamlit Columns - No broken HTML)
+    # Blueprint Summary Row (Native Streamlit Columns)
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.caption("🏛️ Exam")
@@ -203,7 +257,7 @@ if st.session_state.stage in ["question_ready", "socratic_ready", "evaluated"]:
 
     st.write("")
 
-    # Question Card Container (Native Streamlit Container)
+    # Question Card Container
     with st.container(border=True):
         st.markdown(f"### **Problem Statement**\n\n{q.question}")
         st.divider()
@@ -264,7 +318,6 @@ if st.session_state.stage == "socratic_ready":
     with st.container(border=True):
         st.markdown("### 🥊 Socratic Oral Defense")
         
-        # Robust probe retrieval
         probe_text = getattr(challenge, "probe", "")
         if not probe_text or not probe_text.strip():
             probe_text = "Your stated rationale does not specify the mathematical invariant. Under what specific boundary condition does your choice guarantee a safe state?"
