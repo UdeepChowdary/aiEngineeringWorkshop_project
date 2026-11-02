@@ -17,7 +17,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom Styling
+# Custom Styling (Only for global typography and clean accents, NO raw container divs)
 st.markdown("""
 <style>
     .main-header {
@@ -33,32 +33,16 @@ st.markdown("""
         font-size: 1.05rem;
         margin-bottom: 1.5rem;
     }
-    .badge-pill {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 9999px;
-        font-size: 0.8rem;
+    .probe-text {
+        font-size: 1.15rem;
         font-weight: 600;
-        margin-right: 8px;
-        margin-bottom: 8px;
-    }
-    .badge-cyan { background-color: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
-    .badge-purple { background-color: rgba(192, 132, 252, 0.15); color: #c084fc; border: 1px solid rgba(192, 132, 252, 0.3); }
-    .badge-emerald { background-color: rgba(52, 211, 153, 0.15); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.3); }
-    .badge-amber { background-color: rgba(251, 191, 36, 0.15); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3); }
-    .exam-card {
-        padding: 20px;
-        border-radius: 12px;
-        background: rgba(30, 41, 59, 0.5);
-        border: 1px solid rgba(148, 163, 184, 0.2);
-        margin-bottom: 20px;
-    }
-    .socratic-card {
-        padding: 18px;
-        border-radius: 12px;
+        color: #f87171;
+        line-height: 1.6;
+        padding: 12px 16px;
         background: rgba(239, 68, 68, 0.08);
-        border: 1px solid rgba(239, 68, 68, 0.3);
-        margin: 15px 0;
+        border-left: 4px solid #ef4444;
+        border-radius: 6px;
+        margin: 10px 0;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -100,7 +84,7 @@ with st.sidebar:
     st.title("🛡️ ExamSentinel")
     st.caption("Universal Multi-Agent Competitive Exam Sparring System")
     
-    st.markdown("---")
+    st.divider()
     
     # API Key Handling
     api_key_status = bool(get_gemini_api_key())
@@ -109,7 +93,7 @@ with st.sidebar:
         st.warning("No API key detected in environment.")
         manual_api_key = st.text_input("Enter Gemini API Key", type="password", help="Get a free key from Google AI Studio")
     else:
-        st.success("API Key Loaded from Environment / Secrets")
+        st.success("API Key Active & Secured")
     
     st.markdown("### 🎯 Exam Configuration")
     preset_choice = st.selectbox("Select Preset or Custom", list(PRESETS.keys()))
@@ -121,19 +105,19 @@ with st.sidebar:
         target_exam, target_topic = PRESETS[preset_choice]
         st.info(f"**Exam:** {target_exam}\n\n**Topic:** {target_topic}")
 
-    st.markdown("---")
+    st.divider()
     
     # Agent Roster Info
     with st.expander("🤖 The 5-Agent Committee", expanded=False):
         st.markdown("""
-        1. **Exam Profiler**: Blueprint & scoring calibration
-        2. **Question Setter**: High-caliber problem synthesis
-        3. **Trap Analyst**: Psychological distractor deconstruction
-        4. **Socratic Interrogator**: Active oral defense & conviction test
-        5. **Diagnostic Evaluator**: Root-cause categorization & micro-drill
+        * **Exam Profiler**: Dynamic blueprint & scoring calibration
+        * **Question Setter**: High-caliber problem synthesis
+        * **Trap Analyst**: Psychological distractor deconstruction
+        * **Socratic Interrogator**: Active oral defense & conviction test
+        * **Diagnostic Evaluator**: Root-cause categorization & micro-drill
         """)
         
-    st.markdown("---")
+    st.divider()
     
     # Scorecard
     st.markdown("### 📊 Sparring Stats")
@@ -163,7 +147,7 @@ def get_client():
 
 # ----------------- STAGE 0: Initial Screen -----------------
 if st.session_state.stage == "init":
-    st.info("👋 Select an exam and topic on the left sidebar, then click **Generate Exam Problem** to summon the exam committee.")
+    st.info("👋 Select an exam and topic on the left sidebar, then click **Summon Committee & Generate Problem** below to begin.")
     
     if st.button("🚀 Summon Committee & Generate Problem", type="primary", use_container_width=True):
         if not target_exam.strip() or not target_topic.strip():
@@ -194,166 +178,189 @@ if st.session_state.stage == "init":
             except Exception as e:
                 st.error(f"Error initializing committee: {e}")
 
-# ----------------- STAGE 1: Question Ready -----------------
+# ----------------- STAGES 1, 2, 3: Active Question Display -----------------
 if st.session_state.stage in ["question_ready", "socratic_ready", "evaluated"]:
     bp: ExamBlueprint = st.session_state.blueprint
     q: QuestionItem = st.session_state.question
     
-    # Blueprint Banner
-    st.markdown(f"""
-    <span class="badge-pill badge-cyan">🏛️ {bp.exam_name}</span>
-    <span class="badge-pill badge-purple">🎯 {bp.topic}</span>
-    <span class="badge-pill badge-emerald">⚖️ Marking: {bp.marking_scheme}</span>
-    <span class="badge-pill badge-amber">⚡ Difficulty: {bp.difficulty_tier}</span>
-    """, unsafe_allow_html=True)
-    
+    # Blueprint Summary Row (Native Streamlit Columns - No broken HTML)
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.caption("🏛️ Exam")
+        st.markdown(f"**{bp.exam_name}**")
+    with col2:
+        st.caption("🎯 Topic")
+        st.markdown(f"**{bp.topic}**")
+    with col3:
+        st.caption("⚖️ Marking Scheme")
+        st.markdown(f"**{bp.marking_scheme}**")
+    with col4:
+        st.caption("⚡ Difficulty")
+        st.markdown(f"**{bp.difficulty_tier}**")
+
     if bp.hallmark_examiner_tricks:
-        st.caption(f"**Examiner Traps Active:** {', '.join(bp.hallmark_examiner_tricks)}")
+        st.caption(f"⚠️ **Examiner Traps Active:** {', '.join(bp.hallmark_examiner_tricks)}")
 
-    # Question Display
-    st.markdown('<div class="exam-card">', unsafe_allow_html=True)
-    st.markdown(f"### **Problem Statement**\n\n{q.question}")
-    st.markdown("---")
-    
-    # Options Display
-    option_keys = list(q.options.keys())
-    option_labels = [f"({k}) {q.options[k]}" for k in option_keys]
+    st.write("")
 
-    if st.session_state.stage == "question_ready":
-        selected_option_str = st.radio(
-            "Select your answer:",
-            option_labels,
-            index=0,
-            key="radio_choice"
-        )
-        selected_key = selected_option_str.split(")")[0].replace("(", "").strip()
+    # Question Card Container (Native Streamlit Container)
+    with st.container(border=True):
+        st.markdown(f"### **Problem Statement**\n\n{q.question}")
+        st.divider()
         
-        user_reason = st.text_area(
-            "Justification / Formula / Rationale (Required for Socratic Sparring):",
-            placeholder="Explain why this formula or boundary condition applies...",
-            key="text_reasoning"
-        )
-        
-        if st.button("Submit Answer to Socratic Interrogator 🥊", type="primary"):
-            if not user_reason.strip():
-                st.warning("⚠️ Please provide a 1-sentence reasoning so the Examiner can interrogate your mental model!")
-            else:
-                st.session_state.user_choice = selected_key
-                st.session_state.user_reasoning = user_reason
-                
-                try:
-                    client = get_client()
-                    with st.spinner("⚔️ Agent 3 (Socratic Interrogator) analyzing your thought process..."):
-                        socratic = SocraticInterrogatorAgent(client)
-                        challenge = socratic.run(
-                            blueprint=bp,
-                            question=q,
-                            distractor_map=st.session_state.distractor_map,
-                            user_choice=selected_key,
-                            user_reasoning=user_reason
-                        )
-                        st.session_state.socratic_challenge = challenge
-                        st.session_state.stage = "socratic_ready"
-                        st.rerun()
-                except Exception as e:
-                    st.error(f"Error invoking Socratic Interrogator: {e}")
+        option_keys = list(q.options.keys())
+        option_labels = [f"({k}) {q.options[k]}" for k in option_keys]
+
+        if st.session_state.stage == "question_ready":
+            selected_option_str = st.radio(
+                "**Select your answer:**",
+                option_labels,
+                index=0,
+                key="radio_choice"
+            )
+            selected_key = selected_option_str.split(")")[0].replace("(", "").strip()
+            
+            user_reason = st.text_area(
+                "**Justification / Formula / Rationale (Required for Socratic Sparring):**",
+                placeholder="Explain why this formula or boundary condition applies...",
+                key="text_reasoning"
+            )
+            
+            if st.button("Submit Answer to Socratic Interrogator 🥊", type="primary"):
+                if not user_reason.strip():
+                    st.warning("⚠️ Please provide a 1-sentence reasoning so the Examiner can interrogate your mental model!")
+                else:
+                    st.session_state.user_choice = selected_key
+                    st.session_state.user_reasoning = user_reason
                     
-    else:
-        # Display submitted choice as read-only summary
-        st.markdown(f"**Your Initial Choice:** `({st.session_state.user_choice}) {q.options.get(st.session_state.user_choice, '')}`")
-        st.markdown(f"**Your Reasoning:** *\"{st.session_state.user_reasoning}\"*")
-
-    st.markdown('</div>', unsafe_allow_html=True)
+                    try:
+                        client = get_client()
+                        with st.spinner("⚔️ Agent 3 (Socratic Interrogator) analyzing your thought process..."):
+                            socratic = SocraticInterrogatorAgent(client)
+                            challenge = socratic.run(
+                                blueprint=bp,
+                                question=q,
+                                distractor_map=st.session_state.distractor_map,
+                                user_choice=selected_key,
+                                user_reasoning=user_reason
+                            )
+                            st.session_state.socratic_challenge = challenge
+                            st.session_state.stage = "socratic_ready"
+                            st.rerun()
+                    except Exception as e:
+                        st.error(f"Error invoking Socratic Interrogator: {e}")
+                        
+        else:
+            # Display submitted choice as read-only summary inside the card
+            c_a, c_b = st.columns([1, 3])
+            c_a.markdown(f"**Your Initial Choice:** `({st.session_state.user_choice})`")
+            c_b.markdown(f"**Your Stated Reasoning:** *\"{st.session_state.user_reasoning}\"*")
 
 # ----------------- STAGE 2: Socratic Defense -----------------
 if st.session_state.stage == "socratic_ready":
     challenge: SocraticChallenge = st.session_state.socratic_challenge
     
-    st.markdown('<div class="socratic-card">', unsafe_allow_html=True)
-    st.markdown("### 🥊 Socratic Oral Defense")
-    st.markdown(f"**Examiner's Probe:**\n\n> *\"{challenge.probe}\"*")
-    st.caption(f"**Focus Area Under Test:** `{challenge.focus_area}`")
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    defense_input = st.text_area(
-        "Do you stand by your answer or change it? Defend your conviction:",
-        placeholder="e.g. 'I stand by B because the boundary condition holds...' or 'I realize my mistake, the answer should be C because...'",
-        key="text_defense"
-    )
-    
-    if st.button("Finalize Defense & Reveal Post-Mortem 🏁", type="primary"):
-        st.session_state.defense_response = defense_input
-        st.session_state.stats["attempted"] += 1
+    st.write("")
+    with st.container(border=True):
+        st.markdown("### 🥊 Socratic Oral Defense")
         
-        try:
-            client = get_client()
-            with st.spinner("🔬 Agent 4 (Diagnostic Evaluator) compiling root-cause analysis..."):
-                evaluator = DiagnosticEvaluatorAgent(client)
-                report = evaluator.run(
-                    blueprint=st.session_state.blueprint,
-                    question=st.session_state.question,
-                    distractor_map=st.session_state.distractor_map,
-                    initial_choice=st.session_state.user_choice,
-                    initial_reasoning=st.session_state.user_reasoning,
-                    defense_response=defense_input
-                )
-                st.session_state.report = report
-                if report.is_correct or report.error_category == "Mastered":
-                    st.session_state.stats["mastered"] += 1
-                st.session_state.stage = "evaluated"
-                st.rerun()
-        except Exception as e:
-            st.error(f"Error evaluating performance: {e}")
+        # Robust probe retrieval
+        probe_text = getattr(challenge, "probe", "")
+        if not probe_text or not probe_text.strip():
+            probe_text = "Your stated rationale does not specify the mathematical invariant. Under what specific boundary condition does your choice guarantee a safe state?"
+            
+        focus_text = getattr(challenge, "focus_area", "Boundary Invariant & Heuristic Validation")
+        
+        st.markdown(f'<div class="probe-text">⚔️ <strong>Examiner\'s Challenge:</strong><br>{probe_text}</div>', unsafe_allow_html=True)
+        st.caption(f"🎯 **Focus Area Under Test:** `{focus_text}`")
+        
+        st.divider()
+        
+        defense_input = st.text_area(
+            "**Do you stand by your answer or change it? Defend your conviction:**",
+            placeholder="e.g. 'I stand by my choice because...' or 'I realize my mistake, the answer should be...'",
+            key="text_defense"
+        )
+        
+        if st.button("Finalize Defense & Reveal Post-Mortem 🏁", type="primary"):
+            st.session_state.defense_response = defense_input
+            st.session_state.stats["attempted"] += 1
+            
+            try:
+                client = get_client()
+                with st.spinner("🔬 Agent 4 (Diagnostic Evaluator) compiling root-cause analysis..."):
+                    evaluator = DiagnosticEvaluatorAgent(client)
+                    report = evaluator.run(
+                        blueprint=st.session_state.blueprint,
+                        question=st.session_state.question,
+                        distractor_map=st.session_state.distractor_map,
+                        initial_choice=st.session_state.user_choice,
+                        initial_reasoning=st.session_state.user_reasoning,
+                        defense_response=defense_input
+                    )
+                    st.session_state.report = report
+                    if report.is_correct or report.error_category == "Mastered":
+                        st.session_state.stats["mastered"] += 1
+                    st.session_state.stage = "evaluated"
+                    st.rerun()
+            except Exception as e:
+                st.error(f"Error evaluating performance: {e}")
 
 # ----------------- STAGE 3: Performance Post-Mortem -----------------
 if st.session_state.stage == "evaluated":
     report: DiagnosticReport = st.session_state.report
     distractor_map: DistractorMap = st.session_state.distractor_map
     
-    st.markdown("## 📊 Performance Post-Mortem")
-    
-    # Result Banner
-    if report.is_correct:
-        st.success(f"### ✅ CORRECT! CONCEPT SOUND\n**Official Answer:** Option **{q.correct_answer}**")
-    else:
-        st.error(f"### ❌ INCORRECT / COMPROMISED\n**Official Answer:** Option **{q.correct_answer}** (You selected: **{st.session_state.user_choice}**)")
+    st.write("")
+    with st.container(border=True):
+        st.markdown("## 📊 Performance Post-Mortem")
+        
+        # Result Banner
+        if report.is_correct:
+            st.success(f"### ✅ CORRECT! CONCEPT SOUND\n**Official Answer:** Option **{q.correct_answer}**")
+        else:
+            st.error(f"### ❌ INCORRECT / COMPROMISED\n**Official Answer:** Option **{q.correct_answer}** (You selected: **{st.session_state.user_choice}**)")
 
-    # Category & Diagnosis Cards
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        st.markdown(f"**Cognitive Tier:**")
-        st.markdown(f"### `{report.error_category}`")
-    with col2:
-        st.markdown(f"**Diagnostic Summary:**\n\n{report.diagnosis_summary}")
-        st.info(f"**💡 Exam-Day Prescription:**\n\n{report.prescription}")
+        # Category & Diagnosis Cards
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            st.markdown(f"**Cognitive Tier:**")
+            st.markdown(f"### `{report.error_category}`")
+        with col2:
+            st.markdown(f"**Diagnostic Summary:**\n\n{report.diagnosis_summary}")
+            st.info(f"**💡 Exam-Day Prescription:**\n\n{report.prescription}")
 
     # Trap Deconstruction Table
-    st.markdown("### 🕵️‍♂️ Examiner Trap Deconstruction")
-    st.caption("How the question setter engineered each option to deceive unprepared students:")
-    
-    trap_data = []
-    for opt, trap_text in distractor_map.option_traps.items():
-        is_official = (opt.strip().upper() == q.correct_answer.strip().upper())
-        status_label = "✅ CORRECT PROOF" if is_official else "⚠️ EXAMINER TRAP"
-        trap_data.append({
-            "Option": f"Option {opt}",
-            "Status": status_label,
-            "Psychological / Mathematical Dissection": trap_text
-        })
-    st.table(pd.DataFrame(trap_data))
+    st.write("")
+    with st.container(border=True):
+        st.markdown("### 🕵️‍♂️ Examiner Trap Deconstruction")
+        st.caption("How the question setter engineered each option to deceive unprepared students:")
+        
+        trap_data = []
+        for opt, trap_text in distractor_map.option_traps.items():
+            is_official = (opt.strip().upper() == q.correct_answer.strip().upper())
+            status_label = "✅ CORRECT PROOF" if is_official else "⚠️ EXAMINER TRAP"
+            trap_data.append({
+                "Option": f"Option {opt}",
+                "Status": status_label,
+                "Psychological / Mathematical Dissection": trap_text
+            })
+        st.table(pd.DataFrame(trap_data))
 
     # Official Derivation
     with st.expander("📖 View Rigorous Step-by-Step Derivation", expanded=True):
         st.markdown(q.official_explanation)
 
     # 60-Second Micro-Drill
-    st.markdown("### ⏱️ Instant 60-Second Remediation Drill")
-    st.markdown(f"**Follow-Up Problem:**\n\n{report.micro_drill_question}")
-    
-    with st.expander("👁️ Reveal Micro-Drill Solution"):
-        st.success(f"**Solution & Invariant Proof:**\n\n{report.micro_drill_answer}")
+    with st.container(border=True):
+        st.markdown("### ⏱️ Instant 60-Second Remediation Drill")
+        st.markdown(f"**Follow-Up Problem:**\n\n{report.micro_drill_question}")
+        
+        with st.expander("👁️ Reveal Micro-Drill Solution"):
+            st.success(f"**Solution & Invariant Proof:**\n\n{report.micro_drill_answer}")
 
-    if st.button("🔄 Drill Another Problem", type="primary"):
+    st.write("")
+    if st.button("🔄 Drill Another Problem", type="primary", use_container_width=True):
         st.session_state.stage = "init"
         st.session_state.blueprint = None
         st.session_state.question = None
