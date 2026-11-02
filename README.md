@@ -8,15 +8,19 @@
 
 **ExamSentinel** is a capstone-grade, production-ready multi-agent AI system engineered specifically for high-stakes **competitive exam preparation** (e.g., **GATE, JEE Advanced, CAT, GRE, UPSC, USMLE, CFA, SAT**).
 
-Unlike conventional EdTech platforms that serve static quizzes or passive chatbots prone to hallucinations, ExamSentinel deploys an **Adversarial Faculty Examination Committee** orchestrated via a formal **LangGraph StateGraph**. The system autonomously crafts trap-laden exam problems, audits their mathematical correctness through a **cyclic self-healing quality gate**, interrogates the candidate's mental model via **Human-in-the-Loop Socratic defense**, and architecturally diagnoses root-cause cognitive misconceptions.
+Unlike conventional EdTech platforms that serve static quizzes or passive chatbots prone to hallucinations, ExamSentinel deploys an **Adversarial Faculty Examination Committee** orchestrated via a formal **LangGraph StateGraph**. The system autonomously crafts trap-laden exam problems, plots visual schematic diagrams, audits mathematical correctness through a **cyclic self-healing quality gate**, interrogates the candidate's mental model via **Human-in-the-Loop Socratic defense**, and compiles **publication-grade PDF dossiers**.
 
 ---
 
 ## 🌟 Key Highlights & Architectural Innovations
 
 - 🔄 **LangGraph Cyclic Quality Gate:** Autonomous self-correction loop where the `auditor` node validates the `setter` node's problem and answer key. If mathematical ambiguity or formatting errors are detected, the graph routes back to the setter for revision before the candidate ever sees the problem.
-- 🥊 **Human-in-the-Loop Socratic Sparring:** A dedicated interrogator actively probes the candidate's stated rationale, testing whether their answer was backed by proof of invariants or lucky guessing.
+- 📊 **Visual Problem Synthesis & Diagram Plotting:** Dynamically synthesizes and renders schematic diagrams (Mermaid state machines, resource allocation graphs, circuits, and transition trees) alongside rigorous LaTeX formulas.
+- 🏛️ **Past-Year Question (PYQ) Isomorphism Grounding:** Every question is benchmarked against real exam standards (e.g. *GATE CS 2021 Question 44 on Banker's Safety Invariants*) with an authentic **Exam Isomorphism Score**.
+- 🥊 **Multi-Turn Socratic Defense:** Interactive oral defense where the Interrogator stress-tests candidate convictions with optional round-2 counter-probes into boundary conditions.
 - 🗺️ **Diagnostic Study Planning Committee:** An interactive multi-turn diagnostic interview that isolates conceptual bottlenecks when a student struggles with hard topics (e.g., *Recursion & Backtracking*), synthesizing a scaffolded 3-phase mastery roadmap with breakthrough mental analogies.
+- 📥 **1-Click Executive PDF Mastery Dossier:** Uses ReportLab to generate publication-grade PDF documents with full post-mortem diagnostics, trap deconstruction matrices, and step-by-step proofs.
+- 📈 **Production Telemetry & Observability:** Live tracking of node transitions, self-healing cycles, and exportable JSON telemetry compatible with LangSmith and OpenTelemetry.
 - 🔑 **Strict BYOK (Bring Your Own Key) Security:** 100% client-side API key handling with instant one-click validation against Google Gemini. No keys are ever stored on the server or logged, eliminating cloud deployment billing risks.
 - ⚡ **Zero-Key Interactive Mock Demos:** Complete pre-computed mock execution traces for both engines allow evaluators, recruiters, and students to experience the full UI and graph trace with zero setup.
 - 🌐 **100% Free Cloud Deployable:** Native Streamlit design fully optimized for Streamlit Community Cloud without persistent server or database costs.
@@ -28,7 +32,7 @@ Unlike conventional EdTech platforms that serve static quizzes or passive chatbo
 ```mermaid
 flowchart TD
     Start([User Selects Exam & Topic]) --> Node1[Node 1: Exam Profiler Agent<br/>Calibrates blueprint, negative marking & trap archetypes]
-    Node1 --> Node2[Node 2: Question Setter Agent<br/>Synthesizes authentic problem & distractor options]
+    Node1 --> Node2[Node 2: Question Setter Agent<br/>Synthesizes authentic problem, Mermaid schematic & PYQ benchmark]
     
     Node2 --> Node3{Node 3: Exam Auditor Agent<br/>Quality Gate & Mathematical Verification}
     
@@ -37,12 +41,13 @@ flowchart TD
     
     Node4 --> HumanCheck{Human-in-the-Loop<br/>Candidate Submits Choice & Reasoning}
     
-    HumanCheck --> Node5[Node 5: Socratic Interrogator Agent<br/>Challenges candidate conviction & invariants]
+    HumanCheck --> Node5[Node 5: Socratic Interrogator Agent<br/>Challenges candidate conviction & invariants (Round 1 & 2)]
     
     Node5 --> DefenseInput{Candidate Defends Conviction}
     
     DefenseInput --> Node6[Node 6: Diagnostic Evaluator Agent<br/>Compiles cognitive post-mortem + 60s micro-drill]
-    Node6 --> End([Mastery Dossier & Analytics])
+    Node6 --> Exporter[PDF Dossier Generator & Telemetry Logger]
+    Exporter --> End([Mastery Dossier & PDF Download])
 ```
 
 ---
@@ -51,7 +56,7 @@ flowchart TD
 
 ### Pillar 1: Adversarial Exam Sparring Committee (`graph_orchestrator.py`)
 1. **Exam Profiler Agent (`profiler`):** Analyzes the target competitive exam (GATE, JEE, CAT, UPSC, etc.) to calibrate syllabus scope, marking scheme (+1, +2, negative penalties), and hallmark examiner trick patterns.
-2. **Question Setter Agent (`setter`):** Drafts multi-step conceptual problems engineered with authentic distractors. Supports receiving revision critique from the Auditor.
+2. **Question Setter Agent (`setter`):** Drafts multi-step conceptual problems engineered with authentic distractors, Mermaid schematics, and past-year exam benchmarks. Supports receiving revision critique from the Auditor.
 3. **Exam Auditor Agent (`auditor` — Quality Gate):** Independently audits the draft question and answer key for mathematical precision, single-correct validity, and LaTeX syntax.
 4. **Trap & Distractor Analyst (`trap_analyst`):** Deconstructs the cognitive psychology behind every wrong option, documenting which mental shortcut leads to which distractor.
 5. **Socratic Interrogator Agent (`socratic` — Human-in-the-Loop):** Reviews candidate justification and executes an oral defense probe challenging edge cases, invariant bounds, or hidden assumptions.
@@ -68,15 +73,16 @@ flowchart TD
 ```
 aiEngineeringWorkshop/
 ├── .gitignore              # Ignores .env, bytecode, and system artifacts
-├── app.py                  # Streamlit web dashboard with BYOK, Mock Demo & LangGraph viewer
+├── app.py                  # Streamlit web dashboard with BYOK, Mock Demo, PDF & Telemetry
 ├── graph_orchestrator.py   # Formal LangGraph StateGraph engine with cyclic quality gate
+├── pdf_generator.py        # Executive ReportLab PDF exporter for dossiers & study roadmaps
 ├── agents.py               # All 8 specialized multi-agent implementations
 ├── models.py               # Pydantic schemas enforcing strict agent-to-agent contracts
 ├── mock_data.py            # Pre-computed authentic mock data & execution traces
 ├── config.py               # Google Gemini client manager & instant BYOK key verification
 ├── orchestrator.py          # Terminal CLI state machine and Rich interaction loop
 ├── main.py                 # Interactive terminal entry point with exam presets
-├── requirements.txt        # Production dependencies (Streamlit, LangGraph, Google GenAI)
+├── requirements.txt        # Production dependencies (Streamlit, LangGraph, ReportLab, Gemini)
 └── README.md               # Architecture documentation & quickstart guide
 ```
 
@@ -99,7 +105,7 @@ streamlit run app.py
 ```
 Open your browser at **`http://localhost:8501`**.
 
-- **No Key Needed?** Click **⚡ Preview Sample Mock Analysis** in either tab to explore the full interactive interface and execution traces with pre-computed data.
+- **No Key Needed?** Click **⚡ Preview Sample Mock Analysis** in either tab to explore the full interactive interface, Mermaid schematics, PDF export, and execution traces with pre-computed data.
 - **Live Agent Generation?** Enter your free Google Gemini API key in the left sidebar and click **Verify Key**. Get a free key at [Google AI Studio](https://aistudio.google.com/app/apikey) (zero credit card required).
 
 ### 3. Launch the Terminal CLI Interface
@@ -135,8 +141,8 @@ You can deploy ExamSentinel for **100% free** in less than 2 minutes:
    Standard sequential chains (`A -> B -> C`) fail when the question setter makes a mathematical error or hallucinates an incorrect answer key. By introducing an `auditor` node with conditional routing (`route_after_audit`), the system automatically initiates a self-correcting cycle back to `setter` before rendering.
 2. **Eliminating Persona Bleed:**
    Asking a single LLM prompt to simultaneously set a question, act as a harsh examiner, evaluate distractors, and prescribe remediation causes severe attention degradation. Specializing each agent with strict Pydantic output contracts guarantees deterministic schemas and high reasoning fidelity.
-3. **Robust Client-Side BYOK Pattern:**
-   By decoupling cloud deployment from centralized API billing, open-source multi-agent apps can be shared with thousands of evaluators and students without incurring hosting debt or hitting shared rate limits.
+3. **Artifact Generation & Telemetry:**
+   Production AI engineering requires bridging LLM generation with tangible client artifacts (publication-quality ReportLab PDFs) and transparent runtime telemetry (node latencies, self-correction frequencies).
 
 ---
 

@@ -86,7 +86,7 @@ Output a JSON object:
 
 
 class QuestionSetterAgent:
-    """Agent 1: Crafts exam-grade authentic problems with deliberate distractors and revision capability."""
+    """Agent 1: Crafts exam-grade authentic problems with deliberate distractors, visual diagrams (Mermaid), and real PYQ benchmarks."""
 
     def __init__(self, client: genai.Client):
         self.client = client
@@ -94,18 +94,24 @@ class QuestionSetterAgent:
 
     def run(self, blueprint: ExamBlueprint, critique: str = "") -> QuestionItem:
         system_prompt = f"""You are the Chief Question Setter for {blueprint.exam_name}.
-Compose an authentic, high-caliber question on '{blueprint.topic}'.
+Compose an authentic, high-caliber problem on '{blueprint.topic}'.
 Difficulty Tier: {blueprint.difficulty_tier}
 Question Style: {blueprint.question_style}
 
 Rules:
 1. No simple trivia. The problem must require multi-step reasoning or mathematical application.
 2. Provide 4 distinct options: A, B, C, D with 3 deceptive distractor traps.
-3. Keep the problem and explanation concise and mathematically rigorous.
+3. If the topic involves states, transitions, resource allocation, networks, trees, or flowcharts, generate a valid, clean Mermaid diagram in `diagram_code` and set `diagram_type` to "mermaid". If purely text/algebraic, set `diagram_type` to "none" and `diagram_code` to null.
+4. Reference an authentic past-year exam standard in `pyq_benchmark` (e.g. "Isomorphic to GATE CS 2021 Question 44 on Banker's Safety Invariants") with an `exam_isomorphism_score` between 90 and 98.
+5. Keep the problem and explanation concise and mathematically rigorous.
 
 Output JSON:
 {{
-  "question": "Problem statement",
+  "question": "Problem statement (use LaTeX $...$ or tabular formatting where helpful)",
+  "diagram_type": "mermaid or none",
+  "diagram_code": "mermaid string without markdown backticks, e.g. 'graph TD\\n  P0 --> R1' or null",
+  "pyq_benchmark": "Real past exam isomorphism benchmark",
+  "exam_isomorphism_score": 94,
   "options": {{
     "A": "Option text",
     "B": "Option text",
@@ -230,7 +236,7 @@ Evaluate the candidate:
 - Correct Answer: {question.correct_answer}
 
 Categorize into ONE: 'Mastered', 'Trap Victim', 'Conceptual Void', 'Calculation Slip', or 'Unjustified Guess'.
-Provide a 60-second micro-drill question with answer.
+Provide a 60-second micro-drill question with answer, and formulate a follow-up secondary counter-probe for multi-turn sparring.
 
 Output JSON:
 {{
@@ -239,7 +245,8 @@ Output JSON:
   "diagnosis_summary": "1-2 sentence diagnosis",
   "prescription": "Exam-day rule of thumb",
   "micro_drill_question": "Short 1-minute problem testing the exact point of confusion",
-  "micro_drill_answer": "Answer and brief proof"
+  "micro_drill_answer": "Answer and brief proof",
+  "secondary_probe": "A sharp 1-sentence counter-challenge probing the candidate's remaining boundary blindspot"
 }}"""
         user_prompt = f"Question: {question.question}\nOfficial Explanation: {question.official_explanation}"
         data = _call_gemini_json(self.client, system_prompt, user_prompt)

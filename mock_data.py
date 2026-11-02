@@ -46,6 +46,19 @@ def get_mock_sparring_data():
             "D": "0 (System is in an Unsafe State)"
         },
         correct_answer="A",
+        diagram_type="mermaid",
+        diagram_code=(
+            "graph TD\n"
+            "    Init[\"Init State: Avail (2, 1, 2)\"] --> Branch1[\"Valid: Execute P1 (Need 1,1,0 <= Avail)\"]\n"
+            "    Init -.->|Deadlock Trap| Branch2[\"Trap: Execute P3 (P1 then blocked on R2)\"]\n"
+            "    Branch1 --> State2[\"New Avail: (4, 2, 3)\"]\n"
+            "    State2 --> StepP3[\"Execute P3 (Releases 1,1,0)\"]\n"
+            "    StepP3 --> State3[\"New Avail: (5, 3, 3)\"]\n"
+            "    State3 --> Safe1[\"Sequence 1: P1 -> P3 -> P0 -> P2\"]\n"
+            "    State3 --> Safe2[\"Sequence 2: P1 -> P3 -> P2 -> P0\"]\n"
+        ),
+        pyq_benchmark="Isomorphic to GATE CS 2021 Question 44 (Banker's Algorithm & Safe Sequences)",
+        exam_isomorphism_score=96,
         official_explanation=(
             "**Step 1: Compute Currently Available Resources ($Available = Total - \\sum Allocation$)**\n"
             "- $\\sum Allocation = (1+2+3+1, 0+1+0+1, 1+1+2+0) = (7, 2, 4)$\n"
@@ -107,7 +120,8 @@ def get_mock_sparring_data():
         micro_drill_answer=(
             "No. Need(P_B) requires 2 units of R1, but current Available has only 1 unit of R1. "
             "P_A must execute first and release its allocation."
-        )
+        ),
+        secondary_probe="If process P2 simultaneously requests 1 unit of R2 before P1 finishes, prove whether the system remains safe or enters an immediate deadlocked state."
     )
 
     execution_trace = [
