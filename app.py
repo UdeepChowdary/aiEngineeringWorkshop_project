@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from config import get_gemini_client, verify_gemini_key, DEFAULT_MODEL
+from mock_data import get_mock_sparring_data, get_mock_study_plan_data
 from agents import (
     ExamProfilerAgent,
     QuestionSetterAgent,
@@ -68,6 +69,17 @@ st.markdown("""
         padding: 14px 18px;
         margin: 12px 0;
     }
+    .demo-tag {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        background: rgba(168, 85, 247, 0.15);
+        color: #c084fc;
+        border: 1px solid rgba(168, 85, 247, 0.3);
+        margin-bottom: 8px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -82,7 +94,6 @@ PRESETS = {
 }
 
 # --- Session State Initialization ---
-# General / BYOK
 if "byok_key" not in st.session_state:
     st.session_state.byok_key = ""
 if "key_verified" not in st.session_state:
@@ -91,6 +102,8 @@ if "key_verified" not in st.session_state:
 # Exam Sparring State
 if "stage" not in st.session_state:
     st.session_state.stage = "init"
+if "is_sparring_mock" not in st.session_state:
+    st.session_state.is_sparring_mock = False
 if "blueprint" not in st.session_state:
     st.session_state.blueprint = None
 if "question" not in st.session_state:
@@ -112,7 +125,9 @@ if "stats" not in st.session_state:
 
 # Study Planner State
 if "planner_stage" not in st.session_state:
-    st.session_state.planner_stage = "input"  # input -> interview -> plan_ready
+    st.session_state.planner_stage = "input"
+if "is_planner_mock" not in st.session_state:
+    st.session_state.is_planner_mock = False
 if "planner_topic" not in st.session_state:
     st.session_state.planner_topic = ""
 if "planner_description" not in st.session_state:
@@ -133,7 +148,7 @@ with st.sidebar:
     
     # --- Bring Your Own Key (BYOK) Section ---
     st.markdown("### 🔑 Bring Your Own Key (BYOK)")
-    st.caption("To use this multi-agent system, please provide your personal Google Gemini API key. Your key is stored solely in this browser session and is never saved to the server.")
+    st.caption("Enter your Gemini API key to run live agent generation, or use the **⚡ Mock Demo** buttons in each tab to test without a key.")
 
     user_entered_key = st.text_input(
         "Enter Google Gemini API Key",
@@ -169,7 +184,7 @@ with st.sidebar:
         else:
             st.caption("🟡 **Status:** Key entered (click 'Verify Key' to test)")
     else:
-        st.caption("🔴 **Status:** Key required to run agents")
+        st.caption("⚪ **Status:** Demo / Mock mode available without key")
 
     # Informational Guide on Supported Keys & Where to Get Them
     with st.expander("📖 Supported Keys & Where to Get One", expanded=(not bool(st.session_state.byok_key))):
@@ -204,23 +219,6 @@ with st.sidebar:
 
     st.divider()
     
-    # --- Agent Roster Info ---
-    with st.expander("🤖 The Multi-Agent Systems", expanded=False):
-        st.markdown("""
-        **Sparring Committee:**
-        * **Exam Profiler**: Blueprint & scoring calibration
-        * **Question Setter**: Problem synthesis
-        * **Trap Analyst**: Distractor deconstruction
-        * **Socratic Interrogator**: Oral defense check
-        * **Diagnostic Evaluator**: Root-cause triage
-        
-        **Study Planning Committee:**
-        * **Diagnostic Interviewer**: Probes mental model breakdown
-        * **Curriculum Architect**: Synthesizes custom mastery roadmap
-        """)
-        
-    st.divider()
-    
     # --- Scorecard ---
     st.markdown("### 📊 Sparring Stats")
     col_a, col_b = st.columns(2)
@@ -230,27 +228,12 @@ with st.sidebar:
 # Helper function to get authenticated client strictly using BYOK
 def get_client():
     if not st.session_state.byok_key:
-        raise ValueError("Please provide your Gemini API Key in the left sidebar to start.")
+        raise ValueError("Please provide your Gemini API Key in the left sidebar to generate live content, or click the Mock Demo button.")
     return get_gemini_client(st.session_state.byok_key)
 
 # Main Dashboard Header
 st.markdown('<div class="main-header">ExamSentinel : Multi-Agent System</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-header">Competitive Exam Sparring & Diagnostic Cognitive Study Planning powered by specialized AI agent teams.</div>', unsafe_allow_html=True)
-
-# Check active key availability
-if not st.session_state.byok_key:
-    with st.container(border=True):
-        st.warning("### 🔑 Bring Your Own Key Required")
-        st.markdown("""
-        **ExamSentinel** is completely free to use, but requires you to bring your own **Google Gemini API Key** to power the AI agents:
-        
-        1. **Get your free key**: Go to [Google AI Studio (aistudio.google.com)](https://aistudio.google.com/app/apikey) and click **"Create API key"** (free, no credit card required).
-        2. **Paste your key**: Enter it into the **"Enter Google Gemini API Key"** field in the left sidebar.
-        3. **Verify**: Click **"Verify Key"** in the sidebar to activate the system.
-        
-        *Supported formats: keys starting with `AIzaSy...` or `AQ.Ab8...`.*
-        """)
-    st.stop()
 
 # --- TOP NAVIGATION TABS ---
 tab_sparring, tab_planner = st.tabs([
@@ -266,42 +249,72 @@ with tab_sparring:
     st.caption("Drill high-yield exam problems with deliberate cognitive traps and defend your reasoning against the Socratic Interrogator.")
 
     if st.session_state.stage == "init":
-        st.info(f"Targeting: **{target_exam}** — **{target_topic}**. Click below to summon the question-setting committee.")
-        
-        if st.button("🚀 Summon Committee & Generate Problem", type="primary", use_container_width=True):
-            if not target_exam.strip() or not target_topic.strip():
-                st.error("Please provide both an Exam Name and Topic.")
-            else:
-                try:
-                    client = get_client()
-                    with st.status("🏛️ Multi-Agent Committee in session...", expanded=True) as status:
-                        st.write("🔍 **Agent 0 (Exam Profiler):** Calibrating exam blueprint, marking scheme & traps...")
-                        profiler = ExamProfilerAgent(client)
-                        blueprint = profiler.run(target_exam, target_topic)
-                        st.session_state.blueprint = blueprint
+        with st.container(border=True):
+            st.markdown(f"#### 🎯 Ready to Spar on: **{target_exam} — {target_topic}**")
+            st.caption("Choose to generate a real-time question using your API key, or load a pre-computed mock sparring session to preview how the multi-agent system operates.")
+            
+            c_btn1, c_btn2 = st.columns([1.2, 1])
+            
+            with c_btn1:
+                run_live = st.button("🚀 Summon Committee & Generate Problem (Live API)", type="primary", use_container_width=True)
+            with c_btn2:
+                run_mock = st.button("⚡ Preview Sample Mock Analysis (No Key Needed)", type="secondary", use_container_width=True)
 
-                        st.write(f"📝 **Agent 1 (Question Setter):** Composing authentic {blueprint.exam_name} problem...")
-                        setter = QuestionSetterAgent(client)
-                        question = setter.run(blueprint)
-                        st.session_state.question = question
+            if run_live:
+                if not st.session_state.byok_key:
+                    st.error("🔑 Please enter your Gemini API key in the left sidebar to run a live session (or click 'Preview Sample Mock Analysis' instead).")
+                elif not target_exam.strip() or not target_topic.strip():
+                    st.error("Please provide both an Exam Name and Topic.")
+                else:
+                    try:
+                        client = get_client()
+                        with st.status("🏛️ Multi-Agent Committee in session...", expanded=True) as status:
+                            st.write("🔍 **Agent 0 (Exam Profiler):** Calibrating exam blueprint, marking scheme & traps...")
+                            profiler = ExamProfilerAgent(client)
+                            blueprint = profiler.run(target_exam, target_topic)
+                            st.session_state.blueprint = blueprint
 
-                        st.write("🧠 **Agent 2 (Trap Analyst):** Deconstructing psychological distractors...")
-                        trap_analyst = TrapAnalystAgent(client)
-                        distractor_map = trap_analyst.run(blueprint, question)
-                        st.session_state.distractor_map = distractor_map
+                            st.write(f"📝 **Agent 1 (Question Setter):** Composing authentic {blueprint.exam_name} problem...")
+                            setter = QuestionSetterAgent(client)
+                            question = setter.run(blueprint)
+                            st.session_state.question = question
 
-                        status.update(label="✅ Problem and Trap Analysis Ready!", state="complete", expanded=False)
+                            st.write("🧠 **Agent 2 (Trap Analyst):** Deconstructing psychological distractors...")
+                            trap_analyst = TrapAnalystAgent(client)
+                            distractor_map = trap_analyst.run(blueprint, question)
+                            st.session_state.distractor_map = distractor_map
 
-                    st.session_state.stage = "question_ready"
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error initializing committee: {e}")
+                            status.update(label="✅ Problem and Trap Analysis Ready!", state="complete", expanded=False)
+
+                        st.session_state.is_sparring_mock = False
+                        st.session_state.stage = "question_ready"
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error initializing committee: {e}")
+
+            if run_mock:
+                # Load pre-computed mock sparring session
+                bp, q, d_map, s_chal, diag = get_mock_sparring_data()
+                st.session_state.blueprint = bp
+                st.session_state.question = q
+                st.session_state.distractor_map = d_map
+                st.session_state.socratic_challenge = s_chal
+                st.session_state.report = diag
+                st.session_state.user_choice = "B"
+                st.session_state.user_reasoning = "I assumed 3! = 6 permutations after P1 finishes."
+                st.session_state.defense_response = "I see that P0 requires 3 units of R1, which isn't yet available after P1 alone."
+                st.session_state.is_sparring_mock = True
+                st.session_state.stage = "evaluated"
+                st.rerun()
 
     # Active Question Display
     if st.session_state.stage in ["question_ready", "socratic_ready", "evaluated"]:
         bp: ExamBlueprint = st.session_state.blueprint
         q: QuestionItem = st.session_state.question
         
+        if st.session_state.is_sparring_mock:
+            st.markdown('<span class="demo-tag">⚡ DEMO / MOCK ANALYSIS PREVIEW (Sample Data)</span>', unsafe_allow_html=True)
+
         # Blueprint Summary Row
         col1, col2, col3, col4 = st.columns(4)
         with col1:
@@ -371,8 +384,8 @@ with tab_sparring:
                             
             else:
                 c_a, c_b = st.columns([1, 3])
-                c_a.markdown(f"**Your Initial Choice:** `({st.session_state.user_choice})`")
-                c_b.markdown(f"**Your Stated Reasoning:** *\"{st.session_state.user_reasoning}\"*")
+                c_a.markdown(f"**Candidate Choice:** `({st.session_state.user_choice}) {q.options.get(st.session_state.user_choice, '')}`")
+                c_b.markdown(f"**Candidate Reasoning:** *\"{st.session_state.user_reasoning}\"*")
 
     # Socratic Defense
     if st.session_state.stage == "socratic_ready":
@@ -435,7 +448,7 @@ with tab_sparring:
             if report.is_correct:
                 st.success(f"### ✅ CORRECT! CONCEPT SOUND\n**Official Answer:** Option **{q.correct_answer}**")
             else:
-                st.error(f"### ❌ INCORRECT / COMPROMISED\n**Official Answer:** Option **{q.correct_answer}** (You selected: **{st.session_state.user_choice}**)")
+                st.error(f"### ❌ INCORRECT / COMPROMISED\n**Official Answer:** Option **{q.correct_answer}** (Candidate selected: **{st.session_state.user_choice}**)")
 
             col1, col2 = st.columns([1, 2])
             with col1:
@@ -480,6 +493,7 @@ with tab_sparring:
             st.session_state.distractor_map = None
             st.session_state.socratic_challenge = None
             st.session_state.report = None
+            st.session_state.is_sparring_mock = False
             st.rerun()
 
 
@@ -507,8 +521,16 @@ with tab_planner:
                 value=st.session_state.planner_description
             )
             
-            if st.button("🔍 Launch Multi-Agent Diagnostic Interview", type="primary"):
-                if not struggle_topic.strip():
+            c_p1, c_p2 = st.columns([1.2, 1])
+            with c_p1:
+                run_planner_live = st.button("🔍 Launch Diagnostic Interview (Live API)", type="primary", use_container_width=True)
+            with c_p2:
+                run_planner_mock = st.button("⚡ Preview Mock Study Plan: Recursion (No Key Needed)", type="secondary", use_container_width=True)
+
+            if run_planner_live:
+                if not st.session_state.byok_key:
+                    st.error("🔑 Please enter your Gemini API key in the left sidebar to run a live session (or click 'Preview Mock Study Plan: Recursion' instead).")
+                elif not struggle_topic.strip():
                     st.error("Please enter the topic you are struggling with.")
                 else:
                     st.session_state.planner_topic = struggle_topic.strip()
@@ -527,10 +549,21 @@ with tab_planner:
                             st.session_state.planner_interview = interview
                             status.update(label="✅ Diagnostic Questions Ready!", state="complete", expanded=False)
                             
+                        st.session_state.is_planner_mock = False
                         st.session_state.planner_stage = "interview"
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error launching interview: {e}")
+
+            if run_planner_mock:
+                interview_mock, answers_mock, plan_mock = get_mock_study_plan_data()
+                st.session_state.planner_interview = interview_mock
+                st.session_state.planner_user_answers = answers_mock
+                st.session_state.planner_plan = plan_mock
+                st.session_state.planner_topic = "Recursion & Backtracking"
+                st.session_state.is_planner_mock = True
+                st.session_state.planner_stage = "plan_ready"
+                st.rerun()
 
     # STAGE B: The Diagnostic Interview (Agent questions -> Student answers)
     elif st.session_state.planner_stage == "interview":
@@ -588,6 +621,9 @@ with tab_planner:
     elif st.session_state.planner_stage == "plan_ready":
         plan: PersonalizedStudyPlan = st.session_state.planner_plan
         
+        if st.session_state.is_planner_mock:
+            st.markdown('<span class="demo-tag">⚡ DEMO / MOCK STUDY PLAN PREVIEW (Sample Data)</span>', unsafe_allow_html=True)
+
         st.markdown(f"## 🗺️ Personalized Mastery Plan: **{plan.topic}**")
         st.caption(f"Calibrated for **{target_exam}** by the Master Curriculum Architect Agent.")
 
@@ -650,4 +686,5 @@ with tab_planner:
             st.session_state.planner_interview = None
             st.session_state.planner_user_answers = {}
             st.session_state.planner_plan = None
+            st.session_state.is_planner_mock = False
             st.rerun()
