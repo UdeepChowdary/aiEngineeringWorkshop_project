@@ -26,15 +26,18 @@ flowchart TD
 
 ---
 
-## 🤖 The Multi-Agent Roster
+## 🤖 The Multi-Agent Systems
 
-| Agent | Responsibility | Why It Needs to Be a Dedicated Agent |
-| :--- | :--- | :--- |
-| **0. Exam Profiler** | Exam Calibration | Ingests *any* exam name (e.g. "GATE CS", "USMLE Step 1") and automatically infers marking schemes (e.g., negative marking penalties), question styles (MCQ, MSQ, NAT), and difficulty standards. |
-| **1. Question Setter (Chief Examiner)** | Problem Generation | Specialized in crafting multi-step, multi-concept problems with realistic boundary conditions rather than simple trivia. |
-| **2. Trap & Distractor Analyst** | Psychological Deconstruction | Pre-computes why each incorrect option is seductive (e.g. forgetting a unit conversion, assuming linear approximation, neglecting $x \ge 0$). |
-| **3. Socratic Interrogator** | Interactive Sparring | Never immediately says "Right" or "Wrong". It aggressively probes your assumptions and boundary conditions to verify you didn't make a lucky guess. |
-| **4. Diagnostic & Remediation Evaluator** | Root-Cause Post-Mortem | Classifies errors into 5 cognitive categories: *Mastered*, *Trap Victim*, *Conceptual Void*, *Calculation Slip*, or *Unjustified Guess*, and prescribes an instant 60-second micro-drill. |
+### System 1: The Adversarial Sparring Committee
+1. **Exam Profiler Agent**: Dynamic blueprint & scoring calibration for any exam.
+2. **Question Setter Agent**: High-caliber problem synthesis with authentic boundary conditions.
+3. **Trap & Distractor Analyst**: Deconstructs student psychology & cognitive traps.
+4. **Socratic Interrogator**: Conducts active terminal & web oral defense.
+5. **Diagnostic Evaluator**: Post-mortem error taxonomy + 60-second micro-drill.
+
+### System 2: The Diagnostic Study Planning Committee
+1. **Cognitive Diagnostic Interviewer Agent**: Formulates 3 targeted diagnostic probe questions to isolate where a student's mental model is failing when they struggle with a topic (e.g. *Recursion*).
+2. **Master Curriculum & Study Architect Agent**: Synthesizes the student's interview responses into a personalized, day-by-day mastery roadmap with breakthrough mental analogies, progressive phases, practice ladders, and exam benchmarks.
 
 ---
 
