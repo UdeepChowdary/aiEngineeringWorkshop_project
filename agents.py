@@ -1,7 +1,7 @@
 import json
 import re
 import time
-from typing import Dict, Any
+from typing import Dict, Any, List
 from google import genai
 from google.genai import types
 from google.genai.errors import ClientError, ServerError
@@ -11,7 +11,11 @@ from models import (
     QuestionItem,
     DistractorMap,
     SocraticChallenge,
-    DiagnosticReport
+    DiagnosticReport,
+    DiagnosticQuestion,
+    DiagnosticInterview,
+    StudyPlanPhase,
+    PersonalizedStudyPlan
 )
 
 def _clean_json_str(text: str) -> str:
@@ -206,3 +210,125 @@ Output JSON:
         user_prompt = f"Question: {question.question}\nOfficial Explanation: {question.official_explanation}"
         data = _call_gemini_json(self.client, system_prompt, user_prompt)
         return DiagnosticReport(**data)
+
+
+# ==============================================================================
+# STUDY PLANNER MULTI-AGENT COMMITTEE
+# ==============================================================================
+
+class StudyDiagnosticAgent:
+    """Agent A: Formulates 3 diagnostic questions to pinpoint exactly where the student's mental model fails."""
+
+    def __init__(self, client: genai.Client):
+        self.client = client
+        self.name = "Cognitive Diagnostic Interviewer"
+
+    def run(self, target_exam: str, topic: str, user_description: str = "") -> DiagnosticInterview:
+        system_prompt = f"""You are the Cognitive Diagnostic Interviewer Agent for competitive exams ({target_exam}).
+A student is struggling with the topic: '{topic}'.
+Their initial note: '{user_description}'
+
+Your mission is NOT to explain the topic yet.
+You must construct exactly 3 targeted multiple-choice diagnostic questions to pinpoint where their mental model collapses:
+1. Question 1 (Intuition / Representation): How do they currently visualize or think about this concept?
+2. Question 2 (The Cognitive Bottleneck): Where does their brain freeze? (e.g. for recursion: call stack visualization, trusting the induction hypothesis, formulating base cases).
+3. Question 3 (Application / Boundary Traps): When problems get tricky in exams, what causes them to get stuck?
+
+Each question must have 3-4 realistic options describing authentic student confusion.
+
+Output JSON:
+{{
+  "topic": "{topic}",
+  "target_exam": "{target_exam}",
+  "questions": [
+    {{
+      "question_id": "q1",
+      "question_text": "Diagnostic question 1...",
+      "options": ["Option A...", "Option B...", "Option C...", "Option D..."],
+      "diagnostic_intent": "What this reveals about their understanding"
+    }},
+    {{
+      "question_id": "q2",
+      "question_text": "Diagnostic question 2...",
+      "options": ["Option A...", "Option B...", "Option C..."],
+      "diagnostic_intent": "..."
+    }},
+    {{
+      "question_id": "q3",
+      "question_text": "Diagnostic question 3...",
+      "options": ["Option A...", "Option B...", "Option C..."],
+      "diagnostic_intent": "..."
+    }}
+  ]
+}}"""
+        user_prompt = f"Diagnose student roadblock on topic '{topic}' for exam '{target_exam}'. Additional context: '{user_description}'"
+        data = _call_gemini_json(self.client, system_prompt, user_prompt)
+        return DiagnosticInterview(**data)
+
+
+class StudyPlanArchitectAgent:
+    """Agent B: Synthesizes student interview answers into an actionable, scaffolded study plan."""
+
+    def __init__(self, client: genai.Client):
+        self.client = client
+        self.name = "Master Curriculum & Study Architect"
+
+    def run(self, target_exam: str, topic: str, interview: DiagnosticInterview, user_answers: Dict[str, str], extra_notes: str = "") -> PersonalizedStudyPlan:
+        answers_summary = []
+        for q in interview.questions:
+            chosen = user_answers.get(q.question_id, "Not specified")
+            answers_summary.append(f"- Question: {q.question_text}\n  Student's Answer: {chosen}\n  (Intent: {q.diagnostic_intent})")
+
+        interview_context = "\n".join(answers_summary)
+
+        system_prompt = f"""You are the Master Pedagogical & Curriculum Architect for competitive entrance exams ({target_exam}).
+A student struggled with '{topic}', completed a diagnostic interview, and provided their exact responses.
+
+Your task is to synthesize a high-impact, personalized, and non-generic study plan:
+1. Diagnosed Bottleneck: Crisp, empathetic breakdown of their exact cognitive flaw (e.g., trying to trace recursion stack frames manually instead of mathematical induction).
+2. Breakthrough Mental Model: A vivid, memorable analogy or rule-of-thumb that unlocks the concept instantly.
+3. 3-Phase Progressive Study Roadmap:
+   - Phase 1: Core Mental Shift & Invariant (Day 1)
+   - Phase 2: Mechanics & Structural Pattern Recognition (Day 2)
+   - Phase 3: Exam-Grade Traps & Timed PYQ Practice (Day 3)
+4. Practice Ladder: 4-5 progressive problem archetypes to conquer in order.
+5. Mastery Benchmark: An exact litmus test they can take to prove they're ready for {target_exam}.
+
+Output JSON matching:
+{{
+  "topic": "{topic}",
+  "diagnosed_bottleneck": "Clear diagnosis of why they were stuck",
+  "breakthrough_mental_model": "Vivid intuition / mental model shift",
+  "phases": [
+    {{
+      "phase_title": "Phase 1: ...",
+      "time_estimate": "e.g. Day 1 (1.5 hrs)",
+      "core_objective": "Specific milestone",
+      "actionable_steps": ["Step 1", "Step 2", "Step 3"],
+      "high_yield_trap_warning": "Watch out for..."
+    }},
+    {{
+      "phase_title": "Phase 2: ...",
+      "time_estimate": "e.g. Day 2 (2 hrs)",
+      "core_objective": "...",
+      "actionable_steps": ["Step 1", "Step 2"],
+      "high_yield_trap_warning": "..."
+    }},
+    {{
+      "phase_title": "Phase 3: ...",
+      "time_estimate": "e.g. Day 3 (2 hrs)",
+      "core_objective": "...",
+      "actionable_steps": ["Step 1", "Step 2"],
+      "high_yield_trap_warning": "..."
+    }}
+  ],
+  "practice_ladder": ["Level 1: ...", "Level 2: ...", "Level 3: ...", "Level 4: ..."],
+  "mastery_benchmark": "How to verify you have 100% exam-level mastery"
+}}"""
+        user_prompt = f"""Exam: {target_exam}
+Topic: {topic}
+Interview Diagnostic Responses:
+{interview_context}
+Additional Student Notes: {extra_notes}"""
+        data = _call_gemini_json(self.client, system_prompt, user_prompt)
+        return PersonalizedStudyPlan(**data)

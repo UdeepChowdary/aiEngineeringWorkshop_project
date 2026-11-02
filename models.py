@@ -54,7 +54,6 @@ class QuestionItem(BaseModel):
                 "Rigorous proof based on fundamental theorems."
             )
         if "options" not in values or not values["options"]:
-            # If options were nested or missing
             values["options"] = values.get("choices") or {"A": "Option A", "B": "Option B", "C": "Option C", "D": "Option D"}
         return values
 
@@ -115,3 +114,37 @@ class DiagnosticReport(BaseModel):
         if "micro_drill_answer" not in values:
             values["micro_drill_answer"] = values.get("drill_answer") or values.get("answer") or "Consistent with fundamental rule."
         return values
+
+
+# ==============================================================================
+# STUDY PLANNER MULTI-AGENT MODELS
+# ==============================================================================
+
+class DiagnosticQuestion(BaseModel):
+    question_id: str = Field(default="q1")
+    question_text: str = Field(description="The diagnostic question probing the student's conceptual block")
+    options: List[str] = Field(description="Distinct options illustrating different common mental roadblocks")
+    diagnostic_intent: str = Field(description="What specific cognitive confusion this question aims to reveal")
+
+
+class DiagnosticInterview(BaseModel):
+    topic: str = Field(default="Target Concept")
+    target_exam: str = Field(default="General Exam")
+    questions: List[DiagnosticQuestion] = Field(default_factory=list)
+
+
+class StudyPlanPhase(BaseModel):
+    phase_title: str = Field(description="e.g. Phase 1: Call Stack & Base Case Intuition")
+    time_estimate: str = Field(description="e.g. Day 1 (1.5 hours)")
+    core_objective: str = Field(description="The mental shift to achieve in this phase")
+    actionable_steps: List[str] = Field(description="Concrete step-by-step tasks to perform")
+    high_yield_trap_warning: str = Field(description="Specific exam trap to watch out for during this phase")
+
+
+class PersonalizedStudyPlan(BaseModel):
+    topic: str = Field(default="Concept")
+    diagnosed_bottleneck: str = Field(description="Precise root cause of why the student struggled with this concept")
+    breakthrough_mental_model: str = Field(description="The vivid intuitive analogy or invariant rule that demystifies the topic")
+    phases: List[StudyPlanPhase] = Field(default_factory=list, description="Step-by-step progressive roadmap")
+    practice_ladder: List[str] = Field(default_factory=list, description="Curated problem sequence from elementary to exam-grade")
+    mastery_benchmark: str = Field(description="Self-check test to confirm you have 100% exam-level mastery")
