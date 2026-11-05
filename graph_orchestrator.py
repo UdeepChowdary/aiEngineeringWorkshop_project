@@ -161,17 +161,17 @@ def get_langgraph_mermaid_diagram() -> str:
     """Returns the visual Mermaid diagram syntax representing the compiled LangGraph architecture."""
     return """```mermaid
 flowchart TD
-    START([Start Session]) --> profiler[1. Exam Profiler Node<br/><i>Calibrates Exam Blueprint</i>]
-    profiler --> setter[2. Question Setter Node<br/><i>Drafts authentic problem</i>]
-    setter --> auditor[3. Exam Auditor Node<br/><i>Audits math & answer keys</i>]
+    START(["Start Session"]) --> profiler["1. Exam Profiler Node<br/>Calibrates Exam Blueprint"]
+    profiler --> setter["2. Question Setter Node<br/>Drafts authentic problem"]
+    setter --> auditor["3. Exam Auditor Node<br/>Audits math & answer keys"]
     
     auditor -- "Rejected (Self-Healing Loop)" --> setter
-    auditor -- "Approved / Verified" --> trap_analyst[4. Trap Analyst Node<br/><i>Deconstructs cognitive traps</i>]
+    auditor -- "Approved / Verified" --> trap_analyst["4. Trap Analyst Node<br/>Deconstructs cognitive traps"]
     
-    trap_analyst --> HumanInput([Human-in-the-Loop: Candidate Input & Reasoning])
-    HumanInput --> socratic[5. Socratic Interrogator Node<br/><i>Oral defense probe</i>]
+    trap_analyst --> HumanInput(["Human-in-the-Loop: Candidate Input & Reasoning"])
+    HumanInput --> socratic["5. Socratic Interrogator Node<br/>Oral defense probe"]
     
-    socratic --> CandidateDefense([Human-in-the-Loop: Candidate Defense])
-    CandidateDefense --> diagnostic[6. Diagnostic Evaluator Node<br/><i>Root-cause triage & micro-drill</i>]
-    diagnostic --> END([Post-Mortem & Session Complete])
+    socratic --> CandidateDefense(["Human-in-the-Loop: Candidate Defense"])
+    CandidateDefense --> diagnostic["6. Diagnostic Evaluator Node<br/>Root-cause triage & micro-drill"]
+    diagnostic --> END(["Post-Mortem & Session Complete"])
 ```"""

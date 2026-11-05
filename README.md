@@ -31,23 +31,23 @@ Unlike conventional EdTech platforms that serve static quizzes or passive chatbo
 
 ```mermaid
 flowchart TD
-    Start([User Selects Exam & Topic]) --> Node1[Node 1: Exam Profiler Agent<br/>Calibrates blueprint, negative marking & trap archetypes]
-    Node1 --> Node2[Node 2: Question Setter Agent<br/>Synthesizes authentic problem, Mermaid schematic & PYQ benchmark]
+    Start(["User Selects Exam & Topic"]) --> Node1["Node 1: Exam Profiler Agent<br/>Calibrates blueprint, negative marking & trap archetypes"]
+    Node1 --> Node2["Node 2: Question Setter Agent<br/>Synthesizes authentic problem, Mermaid schematic & PYQ benchmark"]
     
-    Node2 --> Node3{Node 3: Exam Auditor Agent<br/>Quality Gate & Mathematical Verification}
+    Node2 --> Node3{"Node 3: Exam Auditor Agent<br/>Quality Gate & Mathematical Verification"}
     
-    Node3 -- "Ambiguity Detected<br/>(Self-Healing Cycle)" --> Node2
-    Node3 -- "Sound & Verified<br/>(Quality Gate Passed)" --> Node4[Node 4: Trap Analyst Agent<br/>Deconstructs psychological distractor traps]
+    Node3 -- "Ambiguity Detected (Self-Healing Cycle)" --> Node2
+    Node3 -- "Sound & Verified (Quality Gate Passed)" --> Node4["Node 4: Trap Analyst Agent<br/>Deconstructs psychological distractor traps"]
     
-    Node4 --> HumanCheck{Human-in-the-Loop<br/>Candidate Submits Choice & Reasoning}
+    Node4 --> HumanCheck{"Human-in-the-Loop<br/>Candidate Submits Choice & Reasoning"}
     
-    HumanCheck --> Node5[Node 5: Socratic Interrogator Agent<br/>Challenges candidate conviction & invariants (Round 1 & 2)]
+    HumanCheck --> Node5["Node 5: Socratic Interrogator Agent<br/>Challenges candidate conviction & invariants (Round 1 & 2)"]
     
-    Node5 --> DefenseInput{Candidate Defends Conviction}
+    Node5 --> DefenseInput{"Candidate Defends Conviction"}
     
-    DefenseInput --> Node6[Node 6: Diagnostic Evaluator Agent<br/>Compiles cognitive post-mortem + 60s micro-drill]
-    Node6 --> Exporter[PDF Dossier Generator & Telemetry Logger]
-    Exporter --> End([Mastery Dossier & PDF Download])
+    DefenseInput --> Node6["Node 6: Diagnostic Evaluator Agent<br/>Compiles cognitive post-mortem + 60s micro-drill"]
+    Node6 --> Exporter["PDF Dossier Generator & Telemetry Logger"]
+    Exporter --> End(["Mastery Dossier & PDF Download"])
 ```
 
 ---
